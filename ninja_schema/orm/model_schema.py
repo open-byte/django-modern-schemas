@@ -247,9 +247,11 @@ class ModelSchemaConfig:
 
     @classmethod
     def clone_field(cls, field: FieldInfo, **kwargs: Any) -> FieldInfo:
-        field_dict = dict(field.__repr_args__())
-        field_dict.update(**kwargs)
-        new_field = FieldInfo(**field_dict)  # type: ignore
+        new_field = field._copy()
+        for key, value in kwargs.items():
+            setattr(new_field, key, value)
+        new_field.rebuild_annotation()
+        
         return new_field
 
     def model_fields(self) -> Iterator[Field]:
