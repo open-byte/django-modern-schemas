@@ -227,7 +227,7 @@ class TestModelSchema:
                     "description": "",
                     "title": "Title",
                 },
-                "category": {
+                "category_id": {
                     "anyOf": [{"type": "integer"}, {"type": "null"}],
                     "default": None,
                     "description": "",
