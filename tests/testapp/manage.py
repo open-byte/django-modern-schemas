@@ -12,9 +12,7 @@ def main() -> None:
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            'Django is required to run the isolated test application.'
-        ) from exc
+        raise ImportError('Django is required to run the isolated test application.') from exc
 
     execute_from_command_line(sys.argv)
 
