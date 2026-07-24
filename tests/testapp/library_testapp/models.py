@@ -1,0 +1,23 @@
+from django.db import models
+
+
+class Author(models.Model):
+    """A small related model used to exercise foreign-key conversion."""
+
+    name = models.CharField(max_length=100)
+    email = models.EmailField(unique=True)
+
+    def __str__(self) -> str:
+        return str(self.name)
+
+
+class Book(models.Model):
+    """A representative model for schema-generation integration tests."""
+
+    title = models.CharField(max_length=200)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name='books')
+    pages = models.PositiveIntegerField()
+    published_on = models.DateField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return str(self.title)
