@@ -9,22 +9,18 @@ from ..errors import ConfigError
 if TYPE_CHECKING:
     from pydantic.typing import DictStrAny
 
-__all__ = ["compute_field_annotations", "IS_PYDANTIC_V1", "PYDANTIC_VERSION"]
+__all__ = ['PYDANTIC_VERSION', 'compute_field_annotations']
 
 logger = logging.getLogger()
 
-PYDANTIC_VERSION = list(map(int, _PYDANTIC_VERSION.split(".")))[:2]
-IS_PYDANTIC_V1 = PYDANTIC_VERSION[0] == 1
+PYDANTIC_VERSION = list(map(int, _PYDANTIC_VERSION.split('.')))[:2]
 
 
 def is_valid_field_name(name: str) -> bool:
-    return not name.startswith("_")
+    return not name.startswith('_')
 
 
-def compute_field_annotations(
-    namespace: "DictStrAny",
-    **field_definitions: Any,
-) -> "DictStrAny":
+def compute_field_annotations(namespace: 'DictStrAny', **field_definitions: Any) -> 'DictStrAny':
     fields = {}
     annotations = {}
 
@@ -40,9 +36,9 @@ def compute_field_annotations(
                 f_annotation, f_value = f_def
             except ValueError as e:  # pragma: no cover
                 raise ConfigError(
-                    "field definitions should either be a tuple of (<type>, <default>) or just a "
-                    "default value, unfortunately this means tuples as "
-                    "default values are not allowed"
+                    'field definitions should either be a tuple of (<type>, <default>) or just a '
+                    'default value, unfortunately this means tuples as '
+                    'default values are not allowed'
                 ) from e
         else:
             f_annotation, f_value = None, f_def
@@ -51,7 +47,7 @@ def compute_field_annotations(
             annotations[f_name] = f_annotation
         fields[f_name] = f_value
 
-    namespace.update(**{"__annotations__": annotations})
+    namespace.update(__annotations__=annotations)
     namespace.update(fields)
 
     return namespace

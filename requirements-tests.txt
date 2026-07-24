@@ -1,7 +1,0 @@
-django-stubs
-mypy == 1.19.1
-pytest
-pytest-asyncio
-pytest-cov
-pytest-django
-ruff == 0.14.14
