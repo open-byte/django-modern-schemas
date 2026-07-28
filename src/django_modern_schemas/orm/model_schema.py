@@ -3,18 +3,20 @@ from itertools import chain
 from typing import (
     Any,
     Optional,
+    TypeVar,
     cast,
     no_type_check,
 )
 
 from django.db.models import Field, ManyToManyRel, ManyToOneRel
+from django.db.models import Model as DjangoModel
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
 from pydantic.fields import FieldInfo
 
 from ..errors import ConfigError
 from ..pydanticutils import compute_field_annotations
-from .mixins import SchemaMixins
+from .mixins import SchemaBaseMixins, SchemaOperationMixin
 from .schema_registry import registry as global_registry
 from .utils.converter import convert_django_field_with_choices
 
@@ -24,6 +26,8 @@ __all__ = ['ModelSchema']
 
 
 PydanticNamespace = None
+
+T = TypeVar('T', bound=DjangoModel)
 
 
 def update_class_missing_fields(cls: type, bases: list[type[BaseModel]], namespace: dict):  # pragma: no cover
@@ -197,9 +201,13 @@ class ModelSchemaMetaclass(ModelMetaclass):
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
-class SchemaBaseModel(SchemaMixins, BaseModel):
+class SchemaBaseModel(BaseModel, SchemaBaseMixins):  # ty:ignore[invalid-method-override]
     pass
 
 
-class ModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
-    model_config = {'from_attributes': True}
+class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
+    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}
+
+
+class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):  # ty:ignore[invalid-method-override]
+    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}

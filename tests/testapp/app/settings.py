@@ -15,15 +15,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE: list[str] = []
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = 'app.urls'
 TEMPLATES: list[dict[str, object]] = []
-WSGI_APPLICATION = 'config.wsgi.application'
-ASGI_APPLICATION = 'config.asgi.application'
+WSGI_APPLICATION = 'app.wsgi.application'
+ASGI_APPLICATION = 'app.asgi.application'
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': './db.sqlite3',
+        'NAME': ':memory:',
     }
 }
 

@@ -386,22 +386,6 @@ class TestModelSchema:
         event.save()
         return event
 
-    @pytest.mark.django_db
-    def test_getter_functions(self):
-        class EventSchema(ModelSchema):
-            class Config:
-                model = Event
-                include = ['title', 'category', 'id']
-
-        event = self.get_new_event(title='PyConf')
-        json_event = EventSchema.from_orm(event)
-
-        assert json_event.model_dump() == {'id': 1, 'title': 'PyConf', 'category': None}
-        json_event.title = 'PyConf Updated'
-
-        json_event.apply_to_model(event)
-        assert event.title == 'PyConf Updated'
-
     def test_abstract_model_schema_does_not_raise_exception_for_incomplete_configuration(
         self,
     ):
@@ -435,35 +419,19 @@ class TestModelSchema:
         assert 'value cleaned' in event.title
 
     @pytest.mark.django_db
-    def test_schema_with_mixin_generic_class(self):
-        """
-        Test that a schema with a generic mixin class works correctly.
-        """
-
-        class GenericMixin(t.Generic[T]):
-            def save(self, instance: t.Optional[T] = None) -> T:
-                """
-                Save the model instance and return it.
-                """
-                if instance:
-                    self.apply_to_model(instance, **self.model_dump())
-                    instance.save()
-                    return instance
-
-                instance = self.Config.model(**self.model_dump())
-                instance.save()
-                return instance
-
-        class BaseModelSchema(ModelSchema, GenericMixin[T]): ...
-
-        class EventGenericSchema(BaseModelSchema[Event]):
+    def test_save_data(self):
+        class EventSchema(ModelSchema[Event]):
             class Config:
                 model = Event
-                include = ('title',)
+                include = ['title']
 
-        event = EventGenericSchema(title='PyConf 2021')
-        assert event.title == 'PyConf 2021'
+        event_schema = EventSchema.model_validate({'title': 'Test Event'})
 
-        instance_event = event.save()
-        assert isinstance(instance_event, Event)
-        assert instance_event.title == 'PyConf 2021'
+        saved_event = event_schema.save()
+        assert isinstance(saved_event, Event)
+        assert saved_event.title == 'Test Event'
+
+        updated_event_schema = EventSchema.from_orm(saved_event)
+        updated_event_schema.title = 'Updated Test Event'
+        updated_event = updated_event_schema.save()
+        assert updated_event.title == 'Updated Test Event'
