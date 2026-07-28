@@ -14,11 +14,12 @@ from django.utils.encoding import force_str
 from pydantic import AnyUrl, BeforeValidator, EmailStr, IPvAnyAddress, Json
 from pydantic.fields import FieldInfo as PydanticField
 from pydantic_core import PydanticUndefined as Undefined
-from src.django_modern_schemas.compat import ArrayField, HStoreField, JSONField, RangeField
-from src.django_modern_schemas.orm.factory import SchemaFactory
-from src.django_modern_schemas.orm.schema_registry import SchemaRegister
-from src.django_modern_schemas.orm.schema_registry import registry as global_registry
-from src.django_modern_schemas.types import DictStrAny
+
+from django_modern_schemas.compat import ArrayField, HStoreField, JSONField, RangeField
+from django_modern_schemas.orm.factory import SchemaFactory
+from django_modern_schemas.orm.schema_registry import SchemaRegister
+from django_modern_schemas.orm.schema_registry import registry as global_registry
+from django_modern_schemas.types import DictStrAny
 
 if TYPE_CHECKING:
     from ..model_schema import ModelSchema

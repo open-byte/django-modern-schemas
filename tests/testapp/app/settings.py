@@ -11,7 +11,7 @@ ALLOWED_HOSTS: list[str] = []
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'library_testapp',
+    'app',
 ]
 
 MIDDLEWARE: list[str] = []
@@ -23,7 +23,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'NAME': './db.sqlite3',
     }
 }
 
