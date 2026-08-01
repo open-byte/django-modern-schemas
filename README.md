@@ -24,6 +24,10 @@ The project starts at version `0.0.1`.
 - `optional`: fields that should be optional.
 - `depth`: the nesting depth for supported related models.
 
+## Tutorials
+
+- [Source](examples/source.md): expose values from attributes, relations, and model methods.
+
 ## Credits and acknowledgements
 
 This project is a new evolution of [Ninja Schema](https://github.com/eadwinCode/ninja-schema)
