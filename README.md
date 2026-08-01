@@ -19,7 +19,7 @@ The project starts at version `0.0.1`.
 ## Schema configuration
 
 - `model`: the Django model used to build the schema.
-- `include`: fields to include in the generated schema.
+- `fields`: fields exposed by the generated schema.
 - `exclude`: fields to omit from the generated schema.
 - `optional`: fields that should be optional.
 - `depth`: the nesting depth for supported related models.

@@ -43,7 +43,7 @@ class SchemaFactory:
         name = name or model.__name__
 
         if fields and exclude:
-            raise ConfigError("Only one of 'include' or 'exclude' should be set.")
+            raise ConfigError("Only one of 'fields' or 'exclude' should be set.")
 
         schema = registry.get_model_schema(model)
         if schema and not skip_registry:
@@ -51,7 +51,7 @@ class SchemaFactory:
 
         model_config_kwargs = {
             'model': model,
-            'include': fields,
+            'fields': fields,
             'exclude': exclude,
             'skip_registry': skip_registry,
             'depth': depth,

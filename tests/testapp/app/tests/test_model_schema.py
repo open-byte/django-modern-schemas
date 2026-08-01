@@ -13,11 +13,11 @@ T = t.TypeVar('T', bound=DjangoModel)
 
 
 class TestModelSchema:
-    def test_schema_include_fields(self):
+    def test_schema_fields(self):
         class EventSchema(ModelSchema):
             class Config:
                 model = Event
-                include = '__all__'
+                fields = '__all__'
 
         assert EventSchema.model_json_schema() == {
             'properties': {
@@ -60,7 +60,7 @@ class TestModelSchema:
         class Event2Schema(ModelSchema):
             class Config:
                 model = Event
-                include = ['title', 'start_date', 'end_date']
+                fields = ['title', 'start_date', 'end_date']
 
         assert Event2Schema.model_json_schema() == {
             'properties': {
@@ -92,7 +92,7 @@ class TestModelSchema:
         class EventDepthSchema(ModelSchema):
             class Config:
                 model = Event
-                include = '__all__'
+                fields = '__all__'
                 depth = 1
 
         assert EventDepthSchema.model_json_schema() == {
@@ -202,7 +202,7 @@ class TestModelSchema:
         class Event4Schema(ModelSchema):
             class Config:
                 model = Event
-                include = '__all__'
+                fields = '__all__'
                 optional = '__all__'
 
         assert Event4Schema.model_json_schema() == {
@@ -245,7 +245,7 @@ class TestModelSchema:
         class Event5Schema(ModelSchema):
             class Config:
                 model = Event
-                include = ['id', 'title', 'start_date']
+                fields = ['id', 'title', 'start_date']
                 optional = [
                     'start_date',
                 ]
@@ -325,7 +325,7 @@ class TestModelSchema:
             class Event1Schema(ModelSchema):
                 class Config:
                     model = Event
-                    include = ['xy', 'yz']
+                    fields = ['xy', 'yz']
 
         with pytest.raises(ConfigError):
 
@@ -381,6 +381,15 @@ class TestModelSchema:
             'type': 'object',
         }
 
+        event_fields_schema = SchemaFactory.create_schema(
+            model=Event,
+            name='EventFieldsSchema',
+            fields=['title'],
+            skip_registry=True,
+        )
+        assert event_fields_schema is not None
+        assert list(event_fields_schema.model_fields) == ['title']
+
     def get_new_event(self, title):
         event = Event(title=title)
         event.save()
@@ -405,7 +414,7 @@ class TestModelSchema:
         class EventWithNewModelConfig(ModelSchema):
             model_config = ConfigDict(
                 model=Event,
-                include=[
+                fields=[
                     'title',
                     'start_date',
                 ],
@@ -423,7 +432,7 @@ class TestModelSchema:
         class EventSchema(ModelSchema[Event]):
             class Config:
                 model = Event
-                include = ['title']
+                fields = ['title']
 
         event_schema = EventSchema.model_validate({'title': 'Test Event'})
 

@@ -250,7 +250,7 @@ def test_all_fields():
 
 
 def test_bigautofield():
-    # primary key are optional fields when include = __all__
+    # Primary keys are optional when fields = __all__.
     class ModelBigAuto(models.Model):
         bigautofiled = models.BigAutoField(primary_key=True)
 
