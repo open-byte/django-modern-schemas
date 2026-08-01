@@ -27,6 +27,8 @@ from examples.source import (
 from pydantic import ValidationError
 
 EXAMPLES_DIRECTORY = Path(__file__).parent.parent / 'examples'
+DOCS_DIRECTORY = Path(__file__).parent.parent / 'docs'
+WORKFLOWS_DIRECTORY = Path(__file__).parent.parent / '.github' / 'workflows'
 TUTORIAL_SOURCES = {
     'basic_schema': 'basic_schema.md',
     'model_schema': 'model_schema.md',
@@ -35,6 +37,15 @@ TUTORIAL_SOURCES = {
     'source': 'source.md',
     'relations': 'relations.md',
     'persistence': 'persistence.md',
+}
+MATERIAL_GUIDES = {
+    'basic_schema': 'guides/basic-schema.md',
+    'model_schema': 'guides/model-schema.md',
+    'schema_factory': 'guides/schema-factory.md',
+    'choices': 'guides/choices.md',
+    'source': 'guides/source.md',
+    'relations': 'guides/relations.md',
+    'persistence': 'guides/persistence.md',
 }
 
 
@@ -137,4 +148,64 @@ def test_example_indexes_link_to_every_tutorial():
 
     for tutorial_name in TUTORIAL_SOURCES.values():
         assert f']({tutorial_name})' in examples_index
-        assert f'](examples/{tutorial_name})' in project_readme
+
+    assert '](examples/README.md)' in project_readme
+    assert '](docs/index.md)' in project_readme
+
+
+@pytest.mark.parametrize(('example_name', 'guide_name'), MATERIAL_GUIDES.items())
+def test_material_guide_embeds_its_tested_example(example_name: str, guide_name: str):
+    guide = (DOCS_DIRECTORY / guide_name).read_text()
+
+    assert f'--8<-- "examples/{example_name}.py"' in guide
+
+
+def test_material_credits_recognize_open_byte_and_original_creator():
+    credits = (DOCS_DIRECTORY / 'project' / 'credits.md').read_text()
+
+    assert 'Open Byte' in credits
+    assert 'Tochukwu (@eadwinCode)' in credits
+    assert 'Ninja Schema' in credits
+
+
+def test_overview_introduces_the_core_apis_and_boundaries():
+    overview = (DOCS_DIRECTORY / 'overview.md').read_text()
+    navigation = (DOCS_DIRECTORY.parent / 'mkdocs.yml').read_text()
+
+    for api in ('`Schema`', '`ModelSchema`', '`SchemaFactory`', '`Source`', '`MethodSource`'):
+        assert api in overview
+
+    assert 'Nested writes are application-specific' in overview
+    assert 'select_related()' in overview
+    assert '- Overview: overview.md' in navigation
+
+
+def test_github_pages_deployment_is_documented_and_configured():
+    workflow = (WORKFLOWS_DIRECTORY / 'deploy-docs.yml').read_text()
+    publishing_guide = (DOCS_DIRECTORY / 'project' / 'publishing.md').read_text()
+
+    assert 'actions/upload-pages-artifact@v3' in workflow
+    assert 'actions/deploy-pages@v4' in workflow
+    assert 'mkdocs build --strict' in workflow
+    assert 'GitHub Actions' in publishing_guide
+    assert 'Settings' in publishing_guide
+
+
+def test_choices_material_guide_embeds_the_django_model_definition():
+    guide = (DOCS_DIRECTORY / 'guides' / 'choices.md').read_text()
+    models = (EXAMPLES_DIRECTORY / 'models.py').read_text()
+
+    assert '--8<-- "examples/models.py:student-choices"' in guide
+    assert '# --8<-- [start:student-choices]' in models
+    assert 'choices=SEMESTER_CHOICES' in models
+
+
+def test_persistence_guides_explain_nested_model_customization():
+    material_guide = (DOCS_DIRECTORY / 'guides' / 'persistence.md').read_text()
+    example_guide = (EXAMPLES_DIRECTORY / 'persistence.md').read_text()
+
+    for guide in (material_guide, example_guide):
+        assert 'override' in guide
+        assert '`create()`' in guide
+        assert '`update()`' in guide
+        assert 'NotImplementedError' in guide

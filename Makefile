@@ -1,8 +1,14 @@
-.PHONY: help docs
+.PHONY: help docs docs-build
 .DEFAULT_GOAL := help
 
 help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+docs: ## Serve the Material documentation site
+	uv run --group docs mkdocs serve
+
+docs-build: ## Build the Material documentation site strictly
+	uv run --group docs mkdocs build --strict
 
 clean: ## Removing cached python compiled files
 	find . -name \*pyc  | xargs  rm -fv

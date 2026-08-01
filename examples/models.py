@@ -31,6 +31,7 @@ class Question(models.Model):
         app_label = 'examples'
 
 
+# --8<-- [start:student-choices]
 class Student(models.Model):
     SEMESTER_CHOICES = (
         ('1', 'One'),
@@ -42,6 +43,9 @@ class Student(models.Model):
 
     class Meta:
         app_label = 'examples'
+
+
+# --8<-- [end:student-choices]
 
 
 class Day(models.Model):

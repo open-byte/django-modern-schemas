@@ -1,0 +1,81 @@
+site_name: Django Modern Schemas
+site_description: Declarative Django ORM schemas powered by Pydantic v2.
+site_author: Open Byte
+site_url: https://open-byte.github.io/django-modern-schemas/
+site_dir: site
+
+repo_name: open-byte/django-modern-schemas
+repo_url: https://github.com/open-byte/django-modern-schemas
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2026 Open Byte
+
+theme:
+  name: material
+  language: en
+  font:
+    text: Fira Sans
+    code: Fira Code
+  icon:
+    logo: material/book-open-page-variant
+    repo: fontawesome/brands/github
+  palette:
+    scheme: default
+    primary: teal
+    accent: amber
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path:
+        - '.'
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/open-byte
+      name: Open Byte on GitHub
+
+nav:
+  - Home: index.md
+  - Overview: overview.md
+  - Getting Started: getting-started.md
+  - Guides:
+      - Basic Schema: guides/basic-schema.md
+      - ModelSchema: guides/model-schema.md
+      - SchemaFactory: guides/schema-factory.md
+      - Django Choices: guides/choices.md
+      - Source and MethodSource: guides/source.md
+      - Relations: guides/relations.md
+      - Persistence: guides/persistence.md
+  - Reference:
+      - ModelSchema Configuration: reference/configuration.md
+  - Project:
+      - Credits and Stewardship: project/credits.md
+      - Publishing Documentation: project/publishing.md
