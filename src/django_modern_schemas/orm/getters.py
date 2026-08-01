@@ -3,9 +3,14 @@ from typing import Any
 from django.db.models import Manager, QuerySet
 from django.db.models.fields.files import FieldFile
 
+from ..metadata import MethodSource, Source, SourceResolver
+
 __all__ = [
     'DjangoGetter',
 ]
+
+
+source_resolver = SourceResolver()
 
 
 class DjangoGetterMixin:
@@ -35,10 +40,16 @@ class DjangoGetter(DjangoGetterMixin):
     def __getattr__(self, key: str) -> Any:
         # if key.startswith("__pydantic"):
         #     return getattr(self._obj, key)
+        source = self._get_source(key)
         if isinstance(self._obj, dict):
-            if key not in self._obj:
+            if key in self._obj:
+                value = self._obj[key]
+            elif source:
+                value = source_resolver.resolve(self._obj, source)
+            else:
                 raise AttributeError(key)
-            value = self._obj[key]
+        elif source:
+            value = source_resolver.resolve(self._obj, source)
         else:
             try:
                 value = getattr(self._obj, key)
@@ -46,3 +57,13 @@ class DjangoGetter(DjangoGetterMixin):
                 raise AttributeError(key) from e
 
         return self._convert_result(value)
+
+    def _get_source(self, key: str) -> Source | MethodSource | None:
+        field = self._schema_cls.model_fields.get(key)
+        if not field:
+            return None
+
+        return next(
+            (metadata for metadata in field.metadata if isinstance(metadata, (Source, MethodSource))),
+            None,
+        )

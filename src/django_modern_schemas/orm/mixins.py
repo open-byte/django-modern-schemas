@@ -6,6 +6,7 @@ from pydantic.json_schema import GenerateJsonSchema
 from pydantic_core.core_schema import ValidationInfo
 from typing_extensions import Self
 
+from django_modern_schemas.metadata import MethodSource, Source
 from django_modern_schemas.orm.getters import DjangoGetter
 from django_modern_schemas.orm.utils.utils import has_child_model
 from django_modern_schemas.types import DictStrAny
@@ -30,6 +31,13 @@ class SchemaOperationMixin(Generic[M]):
 
     _object: M | None = None  # This will hold the Django model instance if loaded via from_orm
 
+    def _source_field_names(self) -> set[str]:
+        return {
+            field_name
+            for field_name, field_info in self.__class__.model_fields.items()  # ty:ignore[unresolved-attribute]
+            if any(isinstance(metadata, (Source, MethodSource)) for metadata in field_info.metadata)
+        }
+
     def update(
         self,
         instance: M,
@@ -48,13 +56,14 @@ class SchemaOperationMixin(Generic[M]):
                 'Please override the `update` method in your schema.'
             )
 
+        source_field_names = self._source_field_names()
         if partial:
             for attr, value in self.model_dump(exclude_unset=True, by_alias=True).items():  # ty:ignore[unresolved-attribute]
-                if hasattr(instance, attr):
+                if attr not in source_field_names and hasattr(instance, attr):
                     setattr(instance, attr, value)
         else:
             for attr, value in self.model_dump().items():  # ty:ignore[unresolved-attribute]
-                if hasattr(instance, attr):
+                if attr not in source_field_names and hasattr(instance, attr):
                     setattr(instance, attr, value)
 
         instance.save()
@@ -83,11 +92,12 @@ class SchemaOperationMixin(Generic[M]):
             )
         ModelClass: type[M] = self.Config.model  # ty:ignore[unresolved-attribute]
         exclude_computed_fields = self.model_computed_fields.keys()  # ty:ignore[unresolved-attribute]
+        excluded_fields = set(exclude_computed_fields) | self._source_field_names()
 
         ## Just in case,  by_alias=True is used to insert related fields
         ## that are not part of the model, but are needed for creation.
         ## the instance.
-        data = self.model_dump(exclude=exclude_computed_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
+        data = self.model_dump(exclude=excluded_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
 
         try:
             record: M = ModelClass._default_manager.create(**data)
