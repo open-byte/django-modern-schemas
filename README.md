@@ -4,7 +4,8 @@
 reuses model types, constraints, defaults, choices, and supported relationships
 to reduce duplication between the data and validation/serialization layers. The
 library exposes `ModelSchema`, `Schema`, and `SchemaFactory` to define or
-generate these schemas.
+generate these schemas. It is maintained by
+[Open Byte](https://github.com/open-byte).
 
 ## Version
 
@@ -16,6 +17,25 @@ The project starts at version `0.0.1`.
 - Django 3.2 or newer
 - Pydantic 2.13.4 or newer
 
+## Documentation
+
+The documentation site is built with
+[Material for MkDocs](https://squidfunk.github.io/mkdocs-material/). Its source
+lives in [docs](docs/index.md) and renders the tested Python examples directly.
+
+```bash
+uv sync --group docs
+uv run --group docs mkdocs serve
+```
+
+- [Getting Started](docs/getting-started.md)
+- [Overview](docs/overview.md)
+- [ModelSchema Guide](docs/guides/model-schema.md)
+- [Source and MethodSource Guide](docs/guides/source.md)
+- [Configuration Reference](docs/reference/configuration.md)
+- [Credits and Stewardship](docs/project/credits.md)
+- [Publishing Documentation](docs/project/publishing.md)
+
 ## Schema configuration
 
 - `model`: the Django model used to build the schema.
@@ -26,16 +46,12 @@ The project starts at version `0.0.1`.
 
 ## Tutorials
 
-- [Examples index](examples/README.md): tested Python examples and their documentation.
-- [Basic Schema](examples/basic_schema.md): serialize ordinary Python objects.
-- [ModelSchema](examples/model_schema.md): generate schemas from Django models.
-- [SchemaFactory](examples/schema_factory.md): create a schema at runtime.
-- [Django Choices](examples/choices.md): validate Django choices with Pydantic.
-- [Source](examples/source.md): expose values from attributes, relations, and model methods.
-- [Relations](examples/relations.md): serialize standard Django relation fields.
-- [Persistence](examples/persistence.md): create and update Django models from validated input.
+- [Examples index](examples/README.md): tested executable Python examples.
 
 ## Credits and acknowledgements
+
+Django Modern Schemas is maintained by
+[Open Byte](https://github.com/open-byte).
 
 This project is a new evolution of [Ninja Schema](https://github.com/eadwinCode/ninja-schema)
 and is developed with the original creator's permission.

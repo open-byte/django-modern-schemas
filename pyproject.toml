@@ -26,6 +26,9 @@ tests = [
     "pytest-cov>=6.0",
     "pytest-django>=4.12.0",
 ]
+docs = [
+    "mkdocs-material>=9.7.0",
+]
 [tool.ruff]
 src=["src"]
 exclude = ["migrations"]
