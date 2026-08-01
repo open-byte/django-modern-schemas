@@ -23,6 +23,7 @@ dev = [
 tests = [
     "django-stubs>=6.0.7",
     "pytest>=9.1.1",
+    "pytest-cov>=6.0",
     "pytest-django>=4.12.0",
 ]
 [tool.ruff]

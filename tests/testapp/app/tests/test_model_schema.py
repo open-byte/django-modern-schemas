@@ -6,13 +6,28 @@ import pytest
 from django.db.models import Model as DjangoModel
 from tests.models import Event
 
-from django_modern_schemas import ModelSchema, SchemaFactory
+from django_modern_schemas import MethodSource, ModelSchema, SchemaFactory
 from django_modern_schemas.errors import ConfigError
 
 T = t.TypeVar('T', bound=DjangoModel)
 
 
 class TestModelSchema:
+    def test_schema_includes_method_source_field(self):
+        class EventMethodSourceSchema(ModelSchema):
+            display_title: t.Annotated[str, MethodSource('display_title')]
+
+            class Config:
+                model = Event
+                fields = ['title']
+
+        assert list(EventMethodSourceSchema.model_fields) == ['title', 'display_title']
+        assert EventMethodSourceSchema.model_fields['display_title'].metadata == [MethodSource('display_title')]
+        assert EventMethodSourceSchema.model_json_schema()['properties']['display_title'] == {
+            'title': 'Display Title',
+            'type': 'string',
+        }
+
     def test_schema_fields(self):
         class EventSchema(ModelSchema):
             class Config:
@@ -440,7 +455,7 @@ class TestModelSchema:
         assert isinstance(saved_event, Event)
         assert saved_event.title == 'Test Event'
 
-        updated_event_schema = EventSchema.from_orm(saved_event)
+        updated_event_schema = EventSchema.model_validate(saved_event)
         updated_event_schema.title = 'Updated Test Event'
         updated_event = updated_event_schema.save()
         assert updated_event.title == 'Updated Test Event'

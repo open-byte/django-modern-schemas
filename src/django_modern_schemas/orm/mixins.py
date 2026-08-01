@@ -4,8 +4,8 @@ from django.db.models import Model as DjangoModel
 from pydantic import BaseModel, model_validator
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic_core.core_schema import ValidationInfo
-from typing_extensions import Self
 
+from django_modern_schemas.metadata import MethodSource, Source
 from django_modern_schemas.orm.getters import DjangoGetter
 from django_modern_schemas.orm.utils.utils import has_child_model
 from django_modern_schemas.types import DictStrAny
@@ -28,7 +28,14 @@ class SchemaOperationMixin(Generic[M]):
     against the schema's fields.
     """
 
-    _object: M | None = None  # This will hold the Django model instance if loaded via from_orm
+    _object: M | None = None  # This can hold the Django model instance used by save.
+
+    def _source_field_names(self) -> set[str]:
+        return {
+            field_name
+            for field_name, field_info in self.__class__.model_fields.items()  # ty:ignore[unresolved-attribute]
+            if any(isinstance(metadata, (Source, MethodSource)) for metadata in field_info.metadata)
+        }
 
     def update(
         self,
@@ -48,13 +55,14 @@ class SchemaOperationMixin(Generic[M]):
                 'Please override the `update` method in your schema.'
             )
 
+        source_field_names = self._source_field_names()
         if partial:
             for attr, value in self.model_dump(exclude_unset=True, by_alias=True).items():  # ty:ignore[unresolved-attribute]
-                if hasattr(instance, attr):
+                if attr not in source_field_names and hasattr(instance, attr):
                     setattr(instance, attr, value)
         else:
             for attr, value in self.model_dump().items():  # ty:ignore[unresolved-attribute]
-                if hasattr(instance, attr):
+                if attr not in source_field_names and hasattr(instance, attr):
                     setattr(instance, attr, value)
 
         instance.save()
@@ -83,11 +91,12 @@ class SchemaOperationMixin(Generic[M]):
             )
         ModelClass: type[M] = self.Config.model  # ty:ignore[unresolved-attribute]
         exclude_computed_fields = self.model_computed_fields.keys()  # ty:ignore[unresolved-attribute]
+        excluded_fields = set(exclude_computed_fields) | self._source_field_names()
 
         ## Just in case,  by_alias=True is used to insert related fields
         ## that are not part of the model, but are needed for creation.
         ## the instance.
-        data = self.model_dump(exclude=exclude_computed_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
+        data = self.model_dump(exclude=excluded_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
 
         try:
             record: M = ModelClass._default_manager.create(**data)
@@ -105,7 +114,7 @@ class SchemaOperationMixin(Generic[M]):
     def save(self, instance: M | None = None, partial: bool | None = None, **kwargs: Any) -> M:
         """
         This method handles both creation and update scenarios:
-        - If an instance exists in `self._object` (load by `from_orm`), it updates that instance
+        - If an instance exists in `self._object`, it updates that instance
         - If an external instance is provided, it updates that instance
         - If no instance exists, it creates a new one
 
@@ -127,18 +136,6 @@ class SchemaOperationMixin(Generic[M]):
             record = self.create(**kwargs)
         record.save()
         return record
-
-    @classmethod
-    def from_orm(cls, obj: Any, **options: Any) -> Self:
-        """
-        In normal Pydantic, `from_orm` is a class method that takes an object and returns a Pydantic model instance.
-        In this case, we are overriding it to use `model_validate` instead of `from_orm`,
-          which allows us to validate the object against the schema defined in the Pydantic model.
-
-        """
-        return cls.model_validate(  # ty:ignore[unresolved-attribute]
-            obj, **options
-        )
 
 
 class BaseMixins:
