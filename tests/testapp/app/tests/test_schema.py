@@ -58,7 +58,7 @@ class UserSchema(Schema):
 
 def test_schema():
     user = User()
-    schema = UserSchema.from_orm(user)
+    schema = UserSchema.model_validate(user)
     assert schema.model_dump() == {
         'name': 'John',
         'groups': [1, 2, 3],
@@ -72,7 +72,7 @@ def test_schema_with_image():
     field = Mock()
     field.storage.url = Mock(return_value='/smile.jpg')
     user.avatar = ImageFieldFile(None, field, name='smile.jpg')
-    schema = UserSchema.from_orm(user)
+    schema = UserSchema.model_validate(user)
     assert schema.model_dump() == {
         'name': 'John',
         'groups': [1, 2, 3],

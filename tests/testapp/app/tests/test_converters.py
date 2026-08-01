@@ -442,7 +442,7 @@ def test_manytomany():
     bar.id = 1
     bar.m2m = m2m
 
-    data = BarSchema.from_orm(bar).model_dump()
+    data = BarSchema.model_validate(bar).model_dump()
 
     assert data == {'id': 1, 'm2m': [1]}
 

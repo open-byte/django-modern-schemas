@@ -455,7 +455,7 @@ class TestModelSchema:
         assert isinstance(saved_event, Event)
         assert saved_event.title == 'Test Event'
 
-        updated_event_schema = EventSchema.from_orm(saved_event)
+        updated_event_schema = EventSchema.model_validate(saved_event)
         updated_event_schema.title = 'Updated Test Event'
         updated_event = updated_event_schema.save()
         assert updated_event.title == 'Updated Test Event'

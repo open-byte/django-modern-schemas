@@ -4,7 +4,6 @@ from django.db.models import Model as DjangoModel
 from pydantic import BaseModel, model_validator
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic_core.core_schema import ValidationInfo
-from typing_extensions import Self
 
 from django_modern_schemas.metadata import MethodSource, Source
 from django_modern_schemas.orm.getters import DjangoGetter
@@ -29,7 +28,7 @@ class SchemaOperationMixin(Generic[M]):
     against the schema's fields.
     """
 
-    _object: M | None = None  # This will hold the Django model instance if loaded via from_orm
+    _object: M | None = None  # This can hold the Django model instance used by save.
 
     def _source_field_names(self) -> set[str]:
         return {
@@ -115,7 +114,7 @@ class SchemaOperationMixin(Generic[M]):
     def save(self, instance: M | None = None, partial: bool | None = None, **kwargs: Any) -> M:
         """
         This method handles both creation and update scenarios:
-        - If an instance exists in `self._object` (load by `from_orm`), it updates that instance
+        - If an instance exists in `self._object`, it updates that instance
         - If an external instance is provided, it updates that instance
         - If no instance exists, it creates a new one
 
@@ -137,18 +136,6 @@ class SchemaOperationMixin(Generic[M]):
             record = self.create(**kwargs)
         record.save()
         return record
-
-    @classmethod
-    def from_orm(cls, obj: Any, **options: Any) -> Self:
-        """
-        In normal Pydantic, `from_orm` is a class method that takes an object and returns a Pydantic model instance.
-        In this case, we are overriding it to use `model_validate` instead of `from_orm`,
-          which allows us to validate the object against the schema defined in the Pydantic model.
-
-        """
-        return cls.model_validate(  # ty:ignore[unresolved-attribute]
-            obj, **options
-        )
 
 
 class BaseMixins:
