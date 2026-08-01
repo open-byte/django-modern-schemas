@@ -1,137 +1,38 @@
-# Source Tutorial
+# Source
 
-`Source` exposes a value from a Django object under a different schema field
-name. Declare it with `typing.Annotated`; Pydantic keeps the metadata and
-`django-modern-schemas` resolves it when validating an object.
+**Source:** [source.py](source.py)
 
-## One-to-one attributes
+`Source` exposes a value from an attribute path under a different schema field
+name. `MethodSource` explicitly invokes a zero-argument model method. The
+example contains both forms:
 
-Given these models:
+- `EventSourceSchema` reads `category.name` and `display_title()`.
+- `CategoryQuestionsSchema` exposes a prefetched reverse `ForeignKey` manager
+  as a list of schemas.
+- `resolve_category_name()` and `resolve_mapping_category_name()` demonstrate
+  `SourceResolver` for object and mapping input when a full schema is not
+  needed.
 
-```python
-from django.db import models
+When an intermediate attribute is `None`, `Source` returns `None`. Reverse
+`ForeignKey` collections are only supported as the final path segment and must
+be loaded by the caller with `prefetch_related()`. The library does not plan
+queries automatically.
 
-
-class Category(models.Model):
-    name = models.CharField(max_length=100)
-
-
-class Event(models.Model):
-    title = models.CharField(max_length=100)
-    category = models.OneToOneField(
-        Category,
-        null=True,
-        on_delete=models.SET_NULL,
-    )
-```
-
-Expose the category name without creating a nested schema:
-
-```python
-from typing import Annotated
-
-from django_modern_schemas import ModelSchema, Source
-
-
-class EventSchema(ModelSchema):
-    category_name: Annotated[str | None, Source('category.name')]
-
-    class Config:
-        model = Event
-        fields = ['title']
-```
-
-```python
-event = Event(title='DjangoCon', category=Category(name='Python'))
-schema = EventSchema.model_validate(event)
-
-assert schema.category_name == 'Python'
-```
-
-If `event.category` is `None`, the resolver returns `None`. Make the schema
-field optional when that is a valid result.
-
-## Model methods
-
-Use `MethodSource` for a zero-argument method. Methods are never called
-implicitly by `Source`.
-
-```python
-from typing import Annotated
-
-from django_modern_schemas import MethodSource, ModelSchema
-
-
-class EventSchema(ModelSchema):
-    display_title: Annotated[str, MethodSource('get_display_title')]
-
-    class Config:
-        model = Event
-        fields = ['title']
-```
-
-`get_display_title` must be defined on `Event`, be callable, and accept no
-arguments. Otherwise validation reports a source resolution error.
-
-## Reverse ForeignKey collections
-
-A reverse `ForeignKey` is allowed only as the final path segment. It is exposed
-as a list and should be prefetched by the caller.
-
-```python
-class Question(models.Model):
-    text = models.CharField(max_length=200)
-    category = models.ForeignKey(
-        Category,
-        related_name='questions',
-        on_delete=models.CASCADE,
-    )
-```
-
-```python
-from typing import Annotated
-
-from django_modern_schemas import ModelSchema, Source
-
-
-class QuestionSchema(ModelSchema):
-    class Config:
-        model = Question
-        fields = ['text']
-
-
-class CategorySchema(ModelSchema):
-    questions: Annotated[list[QuestionSchema], Source('questions')]
-
-    class Config:
-        model = Category
-        fields = ['name']
-
-
-category = Category.objects.prefetch_related('questions').get(pk=category_id)
-schema = CategorySchema.model_validate(category)
-```
-
-The library does not add `select_related()` or `prefetch_related()` calls. Query
-planning remains the caller's responsibility.
-
-## Supported paths and limits
-
-`Source` paths are dotted Python attribute names. This first version supports:
-
-- Direct and nested singular attributes, including forward and reverse
-  `OneToOneField` relations.
-- A reverse `ForeignKey` manager only as the final segment.
-- Explicit zero-argument model methods through `MethodSource`.
-
-These paths are intentionally unsupported:
+These paths remain unsupported:
 
 ```python
 Source('questions.text')       # Cannot traverse a reverse ForeignKey collection.
 Source('questions[0].text')    # Index syntax is not supported.
-Source('get_display_title()')  # Use MethodSource instead.
-Source('tags')                 # ManyToMany relations are not supported yet.
+Source('display_title()')      # Use MethodSource instead.
+Source('tags')                 # ManyToMany paths are not supported.
 ```
+
+Regular `ModelSchema` fields can still serialize `ManyToMany` values; see the
+[relations example](relations.md).
 
 `Source` and `MethodSource` are read-only metadata. Their fields are excluded
 from `ModelSchema.create()` and `ModelSchema.update()`.
+
+The source is executed by `test_source_example` and
+`test_source_collection_example` in
+[`tests/test_examples.py`](../tests/test_examples.py).

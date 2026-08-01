@@ -26,7 +26,14 @@ The project starts at version `0.0.1`.
 
 ## Tutorials
 
+- [Examples index](examples/README.md): tested Python examples and their documentation.
+- [Basic Schema](examples/basic_schema.md): serialize ordinary Python objects.
+- [ModelSchema](examples/model_schema.md): generate schemas from Django models.
+- [SchemaFactory](examples/schema_factory.md): create a schema at runtime.
+- [Django Choices](examples/choices.md): validate Django choices with Pydantic.
 - [Source](examples/source.md): expose values from attributes, relations, and model methods.
+- [Relations](examples/relations.md): serialize standard Django relation fields.
+- [Persistence](examples/persistence.md): create and update Django models from validated input.
 
 ## Credits and acknowledgements
 
