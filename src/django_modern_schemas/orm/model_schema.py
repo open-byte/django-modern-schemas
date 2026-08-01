@@ -46,8 +46,8 @@ class ModelSchemaConfig:
         options: dict[str, Any] | ModelSchemaConfigAdapter | None = None,
     ):
         self.model = getattr(options, 'model', None)
-        _include = getattr(options, 'include', None) or ALL_FIELDS
-        self.include = set() if _include == ALL_FIELDS else set(_include or ())
+        configured_fields = getattr(options, 'fields', None) or ALL_FIELDS
+        self.fields = set() if configured_fields == ALL_FIELDS else set(configured_fields or ())
         self.exclude = set(getattr(options, 'exclude', None) or ())
         self.skip_registry = getattr(options, 'skip_registry', False)
         self.registry = getattr(options, 'registry', global_registry)
@@ -64,7 +64,7 @@ class ModelSchemaConfig:
     def clone_field(cls, field: FieldInfo, **kwargs: Any) -> FieldInfo:
         field_dict = dict(field.__repr_args__())
         field_dict.update(**kwargs)
-        new_field = FieldInfo(**field_dict)  # ty:ignore[invalid-argument-type]
+        new_field = FieldInfo(**field_dict)
         return new_field
 
     def model_fields(self) -> Iterator[Field]:
@@ -76,19 +76,19 @@ class ModelSchemaConfig:
             yield cast(Field, fld)
 
     def validate_configuration(self) -> None:
-        self.include = set() if self.include == ALL_FIELDS else set(self.include or ())
+        self.fields = set() if self.fields == ALL_FIELDS else set(self.fields or ())
 
         if not self.model:
             raise ConfigError("Invalid Configuration. 'model' is required")
 
-        if self.include and self.exclude:
-            raise ConfigError("Only one of 'include' or 'exclude' should be set in configuration.")
+        if self.fields and self.exclude:
+            raise ConfigError("Only one of 'fields' or 'exclude' should be set in configuration.")
 
     def check_invalid_keys(self, **field_names: dict[str, Any]) -> None:
         keys = field_names.keys()
-        invalid_include_exclude_fields = (set(self.include or []) | set(self.exclude or [])) - keys
-        if invalid_include_exclude_fields:
-            raise ConfigError(f'Field(s) {invalid_include_exclude_fields} are not in model.')
+        invalid_fields = (set(self.fields or []) | set(self.exclude or [])) - keys
+        if invalid_fields:
+            raise ConfigError(f'Field(s) {invalid_fields} are not in model.')
         if ALL_FIELDS not in self.optional:
             invalid_options_fields = set(self.optional) - keys
             if invalid_options_fields:
@@ -109,7 +109,7 @@ class ModelSchemaConfig:
             'name',
             self.model._meta.pk.attname,  # type: ignore
         )  # no type:ignore
-        if model_pk not in self.include and model_pk not in self.exclude and ALL_FIELDS not in self.optional:
+        if model_pk not in self.fields and model_pk not in self.exclude and ALL_FIELDS not in self.optional:
             self.optional.add(str(model_pk))  # ty:ignore[invalid-argument-type]
 
 
@@ -135,26 +135,42 @@ class ModelSchemaMetaclass(ModelMetaclass):
 
         if config:
             config_instance = ModelSchemaConfig(name, config)
+            if config is namespace.get('Config'):
+                if hasattr(config, 'fields'):
+                    pydantic_config = {
+                        key: getattr(config, key) for key in dir(config) if not key.startswith('__') and key != 'fields'
+                    }
+                    pydantic_config['__module__'] = namespace['__module__']
+                    pydantic_config['__qualname__'] = f'{namespace["__qualname__"]}.Config'
+                    namespace['Config'] = type(
+                        'Config',
+                        (),
+                        pydantic_config,
+                    )
+            else:
+                namespace['model_config'] = {
+                    key: value for key, value in namespace['model_config'].items() if key != 'fields'
+                }
 
         if config_instance and config_instance.model and not config_instance.abstract:
             annotations = namespace.get('__annotations__', {})
             try:
-                fields = list(config_instance.model_fields())
+                model_fields = list(config_instance.model_fields())
             except AttributeError as exc:
                 raise ConfigError(f'{exc} (Is `Config.model` a valid Django model class?)') from exc
 
             field_values, _seen = {}, set()
 
-            all_fields = {f.name: f for f in fields}
+            all_fields = {f.name: f for f in model_fields}
             config_instance.check_invalid_keys(**all_fields)
 
-            for field in chain(fields, annotations.copy()):
+            for field in chain(model_fields, annotations.copy()):
                 field_name = getattr(field, 'name', getattr(field, 'related_name', field))
 
                 if (
                     field_name in _seen
                     or (
-                        (config_instance.include and field_name not in config_instance.include)
+                        (config_instance.fields and field_name not in config_instance.fields)
                         or (config_instance.exclude and field_name in config_instance.exclude)
                     )
                     and field_name not in annotations
@@ -201,13 +217,13 @@ class ModelSchemaMetaclass(ModelMetaclass):
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
-class SchemaBaseModel(BaseModel, SchemaBaseMixins):  # ty:ignore[invalid-method-override]
+class SchemaBaseModel(BaseModel, SchemaBaseMixins):
     pass
 
 
 class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
-    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}
+    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}  # ty:ignore[conflicting-metaclass]
 
 
-class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):  # ty:ignore[invalid-method-override]
+class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):
     model_config = {'from_attributes': True, 'ninja_schema_abstract': True}

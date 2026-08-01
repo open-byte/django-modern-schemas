@@ -10,7 +10,7 @@ from django_modern_schemas import ModelSchema
 class TestCustomFields:
     def test_enum_field(self):
         class StudentSchema(ModelSchema):
-            model_config = {'model': Student, 'include': '__all__'}
+            model_config = {'model': Student, 'fields': '__all__'}
 
         assert StudentSchema.model_json_schema() == {
             '$defs': {
@@ -44,7 +44,7 @@ class TestCustomFields:
 
     def test_enum_field_or_greater(self):
         class StudentSchema(ModelSchema):
-            model_config = {'model': Student, 'include': '__all__'}
+            model_config = {'model': Student, 'fields': '__all__'}
 
         assert StudentSchema.model_json_schema() == {
             '$defs': {
@@ -80,7 +80,7 @@ class TestCustomFields:
         class StudentEmailSchema(ModelSchema):
             class Config:
                 model = StudentEmail
-                include = '__all__'
+                fields = '__all__'
 
         assert StudentEmailSchema.model_json_schema() == {
             'properties': {
