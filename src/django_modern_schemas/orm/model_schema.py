@@ -64,7 +64,7 @@ class ModelSchemaConfig:
     def clone_field(cls, field: FieldInfo, **kwargs: Any) -> FieldInfo:
         field_dict = dict(field.__repr_args__())
         field_dict.update(**kwargs)
-        new_field = FieldInfo(**field_dict)  # ty:ignore[invalid-argument-type]
+        new_field = FieldInfo(**field_dict)
         return new_field
 
     def model_fields(self) -> Iterator[Field]:
@@ -201,13 +201,13 @@ class ModelSchemaMetaclass(ModelMetaclass):
         return super().__new__(mcs, name, bases, namespace, **kwargs)
 
 
-class SchemaBaseModel(BaseModel, SchemaBaseMixins):  # ty:ignore[invalid-method-override]
+class SchemaBaseModel(BaseModel, SchemaBaseMixins):
     pass
 
 
 class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
-    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}
+    model_config = {'from_attributes': True, 'ninja_schema_abstract': True}  # ty:ignore[conflicting-metaclass]
 
 
-class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):  # ty:ignore[invalid-method-override]
+class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):
     model_config = {'from_attributes': True, 'ninja_schema_abstract': True}
