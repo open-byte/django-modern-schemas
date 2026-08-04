@@ -8,27 +8,11 @@ from pydantic import ValidationError
 from tests.models import Category as DjangoCategory
 from tests.models import Day as DjangoDay
 from tests.models import Event as DjangoEvent
+from tests.models import Person as DjangoPerson
 from tests.models import Question as DjangoQuestion
 from tests.models import Week as DjangoWeek
 
-from django_modern_schemas import MethodSource, ModelSchema, Source, SourceResolutionError, SourceResolver
-
-
-class Category:
-    def __init__(self, name: str | None) -> None:
-        self.name = name
-
-
-class Event:
-    def __init__(self, title: str, category: Category | None) -> None:
-        self.title = title
-        self.category = category
-
-    def display_title(self) -> str:
-        return self.title.upper()
-
-    def format_title(self, prefix: str) -> str:
-        return f'{prefix}: {self.title}'
+from django_modern_schemas import MethodSource, ModelSchema, Source
 
 
 def test_source_normalizes_and_splits_a_path():
@@ -47,62 +31,20 @@ def test_source_rejects_invalid_paths(path: str):
         Source(path)
 
 
-def test_resolver_reads_a_nested_attribute():
-    event = Event(title='DjangoCon', category=Category(name='Python'))
-
-    assert SourceResolver().resolve(event, Source('category.name')) == 'Python'
-
-
-def test_resolver_reads_a_nested_mapping():
-    data = {'category': {'name': 'Python'}}
-
-    assert SourceResolver().resolve(data, Source('category.name')) == 'Python'
-
-
-def test_resolver_returns_none_for_a_none_intermediate_attribute():
-    event = Event(title='DjangoCon', category=None)
-
-    assert SourceResolver().resolve(event, Source('category.name')) is None
-
-
-def test_resolver_raises_a_descriptive_error_for_a_missing_attribute():
-    event = Event(title='DjangoCon', category=None)
-
-    with pytest.raises(SourceResolutionError, match="attribute 'unknown' was not found"):
-        SourceResolver().resolve(event, Source('unknown'))
-
-
-def test_resolver_invokes_an_explicit_model_method():
-    event = Event(title='DjangoCon', category=None)
-
-    assert SourceResolver().resolve(event, MethodSource('display_title')) == 'DJANGOCON'
-
-
-def test_method_source_rejects_a_non_callable_attribute():
-    event = Event(title='DjangoCon', category=None)
-
-    with pytest.raises(SourceResolutionError, match="method 'title' is not callable"):
-        SourceResolver().resolve(event, MethodSource('title'))
-
-
-def test_method_source_rejects_a_method_that_requires_arguments():
-    event = Event(title='DjangoCon', category=None)
-
-    with pytest.raises(SourceResolutionError, match='methods cannot require arguments'):
-        SourceResolver().resolve(event, MethodSource('format_title'))
-
-
 def test_model_schema_resolves_source_from_a_one_to_one_relation():
     class EventSchema(ModelSchema):
         category_name: Annotated[str | None, Source('category.name')]
+        some_thing: Annotated[str, MethodSource('get_some_thing')]
 
         class Config:
             model = DjangoEvent
             fields = ['title']
 
     event = DjangoEvent(title='DjangoCon', category=DjangoCategory(name='Python'))
+    schema = EventSchema.model_validate(event)
 
-    assert EventSchema.model_validate(event).category_name == 'Python'
+    assert schema.category_name == 'Python'
+    assert schema.some_thing == 'Hello World'
 
 
 def test_model_schema_returns_none_for_a_none_source_intermediate_attribute():
@@ -116,6 +58,33 @@ def test_model_schema_returns_none_for_a_none_source_intermediate_attribute():
     event = DjangoEvent(title='DjangoCon', category=None)
 
     assert EventSchema.model_validate(event).category_name is None
+
+
+def test_model_schema_raises_a_descriptive_error_for_a_missing_source_attribute():
+    class EventSchema(ModelSchema):
+        unknown: Annotated[str, Source('unknown')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+
+    event = DjangoEvent(title='DjangoCon', category=None)
+
+    with pytest.raises(ValidationError, match="attribute 'unknown' was not found"):
+        EventSchema.model_validate(event)
+
+
+def test_model_schema_resolves_source_from_a_nested_mapping():
+    class EventSchema(ModelSchema):
+        category_name: Annotated[str, Source('category.name')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+
+    schema = EventSchema.model_validate({'title': 'DjangoCon', 'category': {'name': 'Python'}})
+
+    assert schema.category_name == 'Python'
 
 
 def test_model_schema_prefers_an_explicit_mapping_value_over_source_resolution():
@@ -142,6 +111,76 @@ def test_model_schema_resolves_an_explicit_model_method():
     event = DjangoEvent(title='DjangoCon', category=None)
 
     assert EventSchema.model_validate(event).display_title == 'Event: DjangoCon'
+
+
+def test_model_schema_resolves_a_method_inherited_from_abstract_user():
+    class PersonSchema(ModelSchema):
+        full_name: Annotated[str, MethodSource('get_full_name')]
+
+        class Config:
+            model = DjangoPerson
+            fields = ['username']
+
+    person = DjangoPerson(username='ada', first_name='Ada', last_name='Lovelace')
+
+    assert PersonSchema.model_validate(person).full_name == 'Ada Lovelace'
+
+
+def test_model_schema_resolves_an_inherited_method_that_returns_an_empty_value():
+    class PersonSchema(ModelSchema):
+        full_name: Annotated[str, MethodSource('get_full_name')]
+
+        class Config:
+            model = DjangoPerson
+            fields = ['username']
+
+    person = DjangoPerson(username='ada')
+
+    assert PersonSchema.model_validate(person).full_name == ''
+
+
+def test_model_schema_resolves_a_source_path_through_a_relation_to_an_abstract_user_field():
+    class PersonSchema(ModelSchema):
+        short_name: Annotated[str, MethodSource('get_short_name')]
+        email_domain: Annotated[str, Source('email')]
+
+        class Config:
+            model = DjangoPerson
+            fields = ['username']
+
+    person = DjangoPerson(username='ada', first_name='Ada', email='ada@example.com')
+    schema = PersonSchema.model_validate(person)
+
+    assert schema.short_name == 'Ada'
+    assert schema.email_domain == 'ada@example.com'
+
+
+def test_model_schema_rejects_a_method_source_on_a_non_callable_attribute():
+    class EventSchema(ModelSchema):
+        bad_method: Annotated[str, MethodSource('title')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+
+    event = DjangoEvent(title='DjangoCon', category=None)
+
+    with pytest.raises(ValidationError, match="method 'title' is not callable"):
+        EventSchema.model_validate(event)
+
+
+def test_model_schema_rejects_a_method_source_that_requires_arguments():
+    class EventSchema(ModelSchema):
+        formatted_title: Annotated[str, MethodSource('format_title')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+
+    event = DjangoEvent(title='DjangoCon', category=None)
+
+    with pytest.raises(ValidationError, match='methods cannot require arguments'):
+        EventSchema.model_validate(event)
 
 
 @pytest.mark.django_db

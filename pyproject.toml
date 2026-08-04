@@ -17,6 +17,7 @@ build-backend = "uv_build"
 dev = [
     "django>=3.2",
     "pydantic[email,timezone]>=2.13.4",
+    "pyrefly>=1.2.0",
     "ruff>=0.16.0",
     "ty>=0.0.63",
 ]

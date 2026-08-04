@@ -1,3 +1,4 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 SEMESTER_CHOICES = (
@@ -5,6 +6,14 @@ SEMESTER_CHOICES = (
     ('2', 'Two'),
     ('3', 'Three'),
 )
+
+
+class Person(AbstractUser):
+    """Concrete model inheriting AbstractUser, used to exercise inherited methods like get_full_name."""
+
+    # Distinct related_names: the default 'user_set' would clash with auth.User (fields.E304).
+    groups = models.ManyToManyField('auth.Group', related_name='person_set', blank=True)
+    user_permissions = models.ManyToManyField('auth.Permission', related_name='person_set', blank=True)
 
 
 class Student(models.Model):
@@ -32,6 +41,12 @@ class Event(models.Model):
 
     def display_title(self) -> str:
         return f'Event: {self.title}'
+
+    def get_some_thing(self) -> str:
+        return 'Hello World'
+
+    def format_title(self, prefix: str) -> str:
+        return f'{prefix}: {self.title}'
 
 
 class Question(models.Model):

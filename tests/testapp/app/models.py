@@ -1,3 +1,4 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 SEMESTER_CHOICES = (
@@ -5,6 +6,23 @@ SEMESTER_CHOICES = (
     ('2', 'Two'),
     ('3', 'Three'),
 )
+
+
+class TestAbstractModel(models.Model):
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        abstract = True
+
+    def get_name(self) -> str:
+        return self.name
+
+
+class TestConcreteModel(TestAbstractModel):
+    description = models.TextField()
+
+    class Meta:
+        app_label = 'app'
 
 
 class Student(models.Model):
@@ -41,6 +59,9 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_some_thing(self) -> str:
+        return 'Hello World'
 
 
 class Client(models.Model):
