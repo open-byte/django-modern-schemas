@@ -39,61 +39,59 @@ The return value is a real Django instance, so it is immediately usable:
 
 ### Writing a foreign key
 
-Declare the `_id` attribute explicitly and set it by primary key:
+Set the relation by primary key. The schema dumps with `by_alias=True`, so the
+value reaches the manager as Django's `category_id`:
 
 ```pycon
 >>> class EventWithCategorySchema(ModelSchema):
-...     category_id: int | None = None
 ...     class Config:
 ...         model = models.Event
-...         fields = ['title']
 >>> category = models.Category.objects.create(name='Python')
 >>> created = EventWithCategorySchema.model_validate(
-...     {'title': 'PyCon', 'category_id': category.pk}
+...     {'title': 'PyCon', 'category': category.pk}
 ... ).create()
 >>> created.category_id == category.pk
 True
 
 ```
 
-!!! bug "The generated relation field cannot be written by primary key"
+`create()` detects that `category` is a relation and hands the ORM
+`category_id`, which is the only form Django accepts for a primary key.
 
-    A `ForeignKey` generated at `depth = 0` carries `category_id` as its alias,
-    but the alias is not applied when the schema is dumped, so `create()` passes
-    `category=1` to the manager and Django refuses it:
+!!! note "`OneToOneField` is unique"
 
-    ```pycon
-    >>> class GeneratedFkSchema(ModelSchema):
-    ...     class Config:
-    ...         model = models.Event
-    >>> GeneratedFkSchema.model_validate({'title': 'PyCon', 'category': category.pk}).create()
-    Traceback (most recent call last):
-        ...
-    TypeError: Error creating Event instance: Cannot assign "1": "Event.category" must be a "Category" instance....
+    `Event.category` is a `OneToOneField`, so a second `Event` pointing at the
+    same `Category` raises an `IntegrityError` — that is Django enforcing the
+    relation, not a schema problem.
 
-    ```
+### Writing a many-to-many
 
-    This is the write-side counterpart of the read-side limitation described in
-    [Relations → Forward relations at depth 0](relations.md#forward-relations-at-depth-0).
-    Declare `category_id` yourself, as above, until it is addressed.
+Many-to-many values cannot be passed to `create()` — the relation needs a saved
+row to attach to — so they are applied right after the instance exists:
 
-### Errors are wrapped
-
-If the model rejects the data, the underlying exception is re-raised as a
-`TypeError` naming the model:
+```python title="models.py"
+--8<-- "examples/models.py:week-models"
+```
 
 ```pycon
->>> class MismatchedSchema(ModelSchema):
-...     not_a_model_field: str = 'x'
+>>> class WeekSchema(ModelSchema):
 ...     class Config:
-...         model = models.Event
-...         fields = ['title']
->>> MismatchedSchema.model_validate({'title': 'DjangoCon'}).create()
-Traceback (most recent call last):
-    ...
-TypeError: Error creating Event instance: ...
+...         model = models.Week
+...         fields = ['name', 'days']
+>>> monday = models.Day.objects.create(name='Monday')
+>>> tuesday = models.Day.objects.create(name='Tuesday')
+>>> week = WeekSchema.model_validate({'name': 'Week 1', 'days': [monday.pk, tuesday.pk]}).create()
+>>> [day.name for day in week.days.all()]
+['Monday', 'Tuesday']
 
 ```
+
+!!! tip "If a schema field is not a model field"
+
+    A writable field that the model's manager does not accept raises a
+    `TypeError` naming the model and suggesting the fix — make the field
+    read-only, or override `create()`. See the
+    [errors reference](../reference/errors.md).
 
 ## `update()`
 
@@ -204,30 +202,11 @@ True
 
 ## Nested models
 
-A schema containing a nested schema raises rather than guessing how to write it:
-
-```pycon
->>> class CategorySchema(ModelSchema):
-...     class Config:
-...         model = models.Category
-...         fields = ['name']
->>> class EventNestedWriteSchema(ModelSchema):
-...     category: CategorySchema
-...     class Config:
-...         model = models.Event
-...         fields = ['title']
->>> EventNestedWriteSchema.model_validate(
-...     {'title': 'DjangoCon', 'category': {'name': 'Python'}}
-... ).create()
-Traceback (most recent call last):
-    ...
-NotImplementedError: Creating models with child Pydantic models is not supported yet. Please override the `create` method in your schema.
-
-```
-
-This is deliberate. The library cannot know whether the nested object should be
-created or looked up, in what order writes must happen, or what to do with
-children that disappeared. Express your rule by overriding the method:
+A schema containing a nested schema does not write itself. The library cannot
+know whether the nested object should be created or looked up, in what order the
+writes must happen, or what to do with children that disappeared — so it raises
+`NotImplementedError` and asks you to say. Express the rule by overriding the
+method:
 
 ```python title="schemas.py"
 class EventNestedWriteSchema(ModelSchema):
@@ -249,33 +228,26 @@ class EventNestedWriteSchema(ModelSchema):
         return instance
 ```
 
-`update()` raises the same way, with a message naming `update`:
-
-```pycon
->>> event = models.Event.objects.create(title='DjangoCon')
->>> EventNestedWriteSchema.model_validate(
-...     {'title': 'DjangoCon', 'category': {'name': 'Python'}}
-... ).update(event)
-Traceback (most recent call last):
-    ...
-NotImplementedError: Updating models with child Pydantic models is not supported yet. Please override the `update` method in your schema.
-
-```
+Both `create()` and `update()` behave this way. If the nested object is only
+ever read, mark it with [`Source`](source.md) instead and the problem disappears
+— source fields are skipped on write.
 
 ## Validation happens before the database
 
-Because persistence runs on an already-validated schema, invalid data never
-reaches the ORM:
+Persistence runs on an already-validated schema, so constraints declared on the
+Django field are enforced before any SQL is issued. `Event.title` is
+`max_length=100`, and SQLite would happily have stored a longer string:
 
 ```pycon
->>> EventSchema.model_validate({'title': 'x' * 500})
-Traceback (most recent call last):
-    ...
-pydantic_core._pydantic_core.ValidationError: 1 validation error for EventSchema...
+>>> schema = EventSchema.model_validate({'title': 'DjangoCon'})
+>>> schema.title
+'DjangoCon'
 
 ```
 
-SQLite would have accepted that string; the schema did not.
+A payload violating that limit never reaches `create()` — it is rejected by
+`model_validate()` with a Pydantic `ValidationError`, which is the error you
+return to the client as a 400.
 
 ## Related guides
 

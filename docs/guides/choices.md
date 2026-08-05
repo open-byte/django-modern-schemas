@@ -56,23 +56,14 @@ A configured value is accepted, whichever form you pass:
 
 ```
 
-Anything else is rejected:
+Anything else is rejected, and the message already names the permitted values —
+so it can go straight into an API error response without you restating the list:
 
 ```pycon
->>> StudentSchema.model_validate({'semester': '9'})
-Traceback (most recent call last):
-    ...
-pydantic_core._pydantic_core.ValidationError: 1 validation error for StudentSchema...
-
-```
-
-The error names the permitted values, which makes it directly usable in an API
-response:
-
-```pycon
+>>> from pydantic import ValidationError
 >>> try:
 ...     StudentSchema.model_validate({'semester': '9'})
-... except Exception as error:
+... except ValidationError as error:
 ...     print(error.errors()[0]['msg'])
 Input should be '1', '2' or '3'
 

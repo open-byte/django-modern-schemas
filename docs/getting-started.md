@@ -103,27 +103,21 @@ True
 
 ```
 
-Invalid input raises Pydantic's `ValidationError`, using the constraint declared
-on the Django field:
+Constraints come from the Django field, so a payload that would not fit the
+column is caught before any SQL runs. `ValidationError.errors()` is already in
+the shape of a JSON error response:
 
 ```pycon
->>> EventSchema.model_validate({'title': 'x' * 200})
-Traceback (most recent call last):
-    ...
-pydantic_core._pydantic_core.ValidationError: 1 validation error for EventSchema...
-
-```
-
-The rule that failed is `max_length=100`, which the schema never restated:
-
-```pycon
+>>> from pydantic import ValidationError
 >>> try:
 ...     EventSchema.model_validate({'title': 'x' * 200})
-... except Exception as error:
+... except ValidationError as error:
 ...     print(error.errors()[0]['type'], error.errors()[0]['ctx'])
 string_too_long {'max_length': 100}
 
 ```
+
+The rule that fired is `max_length=100`, which the schema never restated.
 
 ## Step 3 — Serialize a model instance
 

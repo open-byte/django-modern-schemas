@@ -6,7 +6,7 @@ A relation can be represented two ways: as the related object's **primary key**
 | Relation | `depth = 0` | `depth = 1` |
 | --- | --- | --- |
 | `ManyToManyField` | `list[int]` of primary keys | `list[NestedSchema]` |
-| `ForeignKey` / `OneToOneField` | `int` primary key — [see the limitation](#forward-relations-at-depth-0) | Nested schema, `None` when unset |
+| `ForeignKey` / `OneToOneField` | `int` primary key, aliased `<name>_id` | Nested schema, `None` when unset |
 | Reverse `ForeignKey` | Not generated — use [`Source`](source.md#collections) | Not generated |
 
 ## Many-to-many
@@ -80,95 +80,57 @@ With `depth = 1`, the relation becomes a nested schema and `None` is handled:
 
 ```
 
-### Forward relations at depth 0
+### Flat — the related primary key
 
-At `depth = 0` a forward relation is generated as an `int` carrying the Django
-`_id` attribute name as its alias:
+At `depth = 0` a forward relation is represented by the related object's primary
+key:
 
 ```pycon
 >>> class FlatEventSchema(ModelSchema):
 ...     class Config:
 ...         model = models.Event
->>> FlatEventSchema.model_fields['category'].annotation
-typing.Optional[int]
+>>> FlatEventSchema.model_validate(event).model_dump()
+{'id': 1, 'title': 'DjangoCon', 'category': 1}
+
+```
+
+An unset relation resolves to `None`:
+
+```pycon
+>>> FlatEventSchema.model_validate(models.Event(id=3, title='Solo', category=None)).model_dump()
+{'id': 3, 'title': 'Solo', 'category': None}
+
+```
+
+Either a primary key or the related instance is accepted on input, so you can
+pass whichever you have:
+
+```pycon
+>>> FlatEventSchema.model_validate({'title': 'X', 'category': category.pk}).category
+1
+>>> FlatEventSchema.model_validate({'title': 'X', 'category': category}).category
+1
+
+```
+
+The field carries Django's `_id` attribute name as its alias, which is what
+`create()` and `update()` use to write the relation:
+
+```pycon
 >>> FlatEventSchema.model_fields['category'].alias
 'category_id'
 
 ```
 
-!!! bug "Known limitation: validating an instance whose forward relation is set"
+Ordinary output is unaffected — the field name stays `category`:
 
-    Pydantic looks the value up under the **field name** (`category`), not the
-    alias, so the getter returns the related *object* where an `int` is
-    expected:
+```pycon
+>>> FlatEventSchema.model_validate(event).model_dump_json()
+'{"id":1,"title":"DjangoCon","category":1}'
+>>> list(FlatEventSchema.model_json_schema()['properties'])
+['id', 'title', 'category']
 
-    ```pycon
-    >>> FlatEventSchema.model_validate(event)
-    Traceback (most recent call last):
-        ...
-    pydantic_core._pydantic_core.ValidationError: 1 validation error for FlatEventSchema...
-
-    ```
-
-    An unset relation validates fine, which is why the problem is easy to miss
-    until real data arrives:
-
-    ```pycon
-    >>> FlatEventSchema.model_validate(models.Event(id=3, title='Solo', category=None)).model_dump()
-    {'id': 3, 'title': 'Solo', 'category': None}
-
-    ```
-
-    Note that `ManyToManyField` does not have this problem — it converts model
-    instances to primary keys on the way in.
-
-    Until this is addressed, use one of:
-
-    === "Nest the relation"
-
-        ```pycon
-        >>> NestedEventSchema.model_validate(event).model_dump()['category']
-        {'id': 1, 'name': 'Python'}
-
-        ```
-
-    === "Declare the id field yourself"
-
-        ```pycon
-        >>> class EventWithCategoryIdSchema(ModelSchema):
-        ...     category_id: int | None = None
-        ...     class Config:
-        ...         model = models.Event
-        ...         fields = ['id', 'title']
-        >>> EventWithCategoryIdSchema.model_validate(event).model_dump()
-        {'id': 1, 'title': 'DjangoCon', 'category_id': 1}
-
-        ```
-
-    === "Read it with Source"
-
-        ```pycon
-        >>> class EventCategoryPkSchema(ModelSchema):
-        ...     category_pk: Annotated[int | None, Source('category.pk')]
-        ...     class Config:
-        ...         model = models.Event
-        ...         fields = ['id', 'title']
-        >>> EventCategoryPkSchema.model_validate(event).model_dump()
-        {'id': 1, 'title': 'DjangoCon', 'category_pk': 1}
-
-        ```
-
-    === "Exclude it"
-
-        ```pycon
-        >>> class EventOnlySchema(ModelSchema):
-        ...     class Config:
-        ...         model = models.Event
-        ...         exclude = ['category']
-        >>> EventOnlySchema.model_validate(event).model_dump()
-        {'id': 1, 'title': 'DjangoCon'}
-
-        ```
+```
 
 ## Reverse relations
 

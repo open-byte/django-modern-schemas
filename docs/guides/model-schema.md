@@ -74,48 +74,18 @@ A deny-list. Everything except the named fields is generated.
 
 ```
 
-### They are mutually exclusive
+### Picking one
 
-Setting both is a configuration error, raised when the class is created:
+Use `fields` when the response shape is small and deliberate, and `exclude` when
+you want everything the model gains over time except a few columns. They cannot
+be combined — a schema states its boundary one way or the other.
 
-```pycon
->>> class BrokenSchema(ModelSchema):
-...     class Config:
-...         model = models.Event
-...         fields = ['title']
-...         exclude = ['category']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Only one of 'fields' or 'exclude' should be set in configuration.
+!!! tip "Configuration is checked when the class is created"
 
-```
-
-### Unknown names are rejected
-
-Typos fail loudly instead of producing a schema that is quietly missing a field:
-
-```pycon
->>> class TypoSchema(ModelSchema):
-...     class Config:
-...         model = models.Event
-...         fields = ['titel']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Field(s) {'titel'} are not in model.
-
-```
-
-A missing `model` is caught the same way:
-
-```pycon
->>> class NoModelSchema(ModelSchema):
-...     class Config:
-...         fields = ['title']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Invalid Configuration. 'model' is required
-
-```
+    Setting both options, naming a field that does not exist, or omitting
+    `model` raises `ConfigError` at import time rather than on the first
+    request, so a mistake cannot reach production behind an untested path. The
+    exact messages are in the [errors reference](../reference/errors.md#configerror).
 
 ## `optional` — relaxing required fields
 
@@ -147,18 +117,11 @@ Pass `'__all__'` to relax every field at once:
 
 ```
 
-Like `fields`, unknown names are rejected:
+This pairs with `update(partial=True)` for a PATCH endpoint, where absent keys
+must be left alone rather than overwritten — see
+[Persistence → Partial updates](persistence.md#partial-updates).
 
-```pycon
->>> class BadOptionalSchema(ModelSchema):
-...     class Config:
-...         model = models.Event
-...         optional = ['nope']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Field(s) {'nope'} are not in model.
-
-```
+Like `fields`, unknown names raise `ConfigError` when the class is created.
 
 ## The primary key rule
 
@@ -211,14 +174,15 @@ False
 ## `depth` — nesting related schemas
 
 At the default `depth = 0`, a relation is represented by the related object's
-primary key, exposed under Django's `_id` attribute name:
+primary key, and carries Django's `_id` attribute name as its alias:
 
 ```pycon
 >>> class FlatEventSchema(ModelSchema):
 ...     class Config:
 ...         model = models.Event
->>> FlatEventSchema.model_fields['category'].annotation
-typing.Optional[int]
+>>> event = models.Event(id=1, title='DjangoCon', category=models.Category(id=2, name='Python'))
+>>> FlatEventSchema.model_validate(event).model_dump()
+{'id': 1, 'title': 'DjangoCon', 'category': 2}
 >>> FlatEventSchema.model_fields['category'].alias
 'category_id'
 

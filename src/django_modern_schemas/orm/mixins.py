@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Model as DjangoModel
 from pydantic import BaseModel, model_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -37,6 +38,34 @@ class SchemaOperationMixin(Generic[M]):
             if any(isinstance(metadata, (Source, MethodSource)) for metadata in field_info.metadata)
         }
 
+    @staticmethod
+    def _split_relations(model_cls: type[DjangoModel], data: DictStrAny) -> tuple[DictStrAny, DictStrAny]:
+        """Split validated data into direct fields and many-to-many fields.
+
+        Many-to-many values are removed because they cannot be passed to `create()`:
+        they require a saved instance. Forward relations holding a primary key are
+        rewritten to the Django attribute name (`category` -> `category_id`), since
+        the ORM only accepts a model instance under the plain field name.
+        """
+        direct: DictStrAny = {}
+        many_to_many: DictStrAny = {}
+
+        for name, value in data.items():
+            try:
+                field = model_cls._meta.get_field(name)
+            except FieldDoesNotExist:
+                direct[name] = value
+                continue
+
+            if field.many_to_many:
+                many_to_many[name] = value
+            elif field.is_relation and field.concrete and not isinstance(value, DjangoModel):
+                direct.setdefault(field.attname, value)
+            else:
+                direct[name] = value
+
+        return direct, many_to_many
+
     def update(
         self,
         instance: M,
@@ -56,16 +85,23 @@ class SchemaOperationMixin(Generic[M]):
             )
 
         source_field_names = self._source_field_names()
-        if partial:
-            for attr, value in self.model_dump(exclude_unset=True, by_alias=True).items():  # ty:ignore[unresolved-attribute]
-                if attr not in source_field_names and hasattr(instance, attr):
-                    setattr(instance, attr, value)
-        else:
-            for attr, value in self.model_dump().items():  # ty:ignore[unresolved-attribute]
-                if attr not in source_field_names and hasattr(instance, attr):
-                    setattr(instance, attr, value)
+        dumped = self.model_dump(exclude_unset=bool(partial), by_alias=True)  # ty:ignore[unresolved-attribute]
+        data = {attr: value for attr, value in dumped.items() if attr not in source_field_names}
+
+        # Unlike `create()`, many-to-many values only need to wait for the save below,
+        # because an existing instance already has the pk the relation is stored against.
+        direct, many_to_many = self._split_relations(type(instance), data)
+
+        for attr, value in direct.items():
+            if hasattr(instance, attr):
+                setattr(instance, attr, value)
 
         instance.save()
+
+        # Set many-to-many fields after saving: doing so triggers signals that could
+        # change the instance, and we do not want that colliding with the update above.
+        for attr, value in many_to_many.items():
+            getattr(instance, attr).set(value)
 
         return instance
 
@@ -98,16 +134,26 @@ class SchemaOperationMixin(Generic[M]):
         ## the instance.
         data = self.model_dump(exclude=excluded_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
 
+        # Many-to-many values are not valid arguments to `create()`: they require the
+        # instance to already be saved, so they are applied afterwards.
+        direct, many_to_many = self._split_relations(ModelClass, data)
+
         try:
-            record: M = ModelClass._default_manager.create(**data)
+            record: M = ModelClass._default_manager.create(**direct)
 
         except Exception as e:
             # Handle case where the model does not accept certain fields
 
             raise TypeError(
                 f'Error creating {ModelClass.__name__} instance: {e}. '
-                "Ensure that all fields in the schema match the model's fields."
+                'This may be because the schema has a writable field that is not a valid '
+                f'argument to {ModelClass.__name__}.{ModelClass._default_manager.name}.create(). '
+                f'You may need to make the field read-only, or override {type(self).__name__}.create() '
+                'to handle it.'
             ) from e
+
+        for field_name, value in many_to_many.items():
+            getattr(record, field_name).set(value)
 
         return record
 

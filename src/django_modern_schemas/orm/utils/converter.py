@@ -119,6 +119,20 @@ def create_m2m_link_type(type_: type[TModel], related_model: type[models.Model])
 
 
 @no_type_check
+def convert_relation_to_pk(value: Any) -> Any:
+    """Resolve a singular relation to the related primary key.
+
+    Reading an instance yields the related *object*, while the generated field is typed
+    as the related primary key. This accepts either form, mirroring what
+    `create_m2m_link_type` already does for collections, but leaves `None` intact so
+    nullable relations stay valid.
+    """
+    if value is None:
+        return None
+    return getattr(value, 'pk', value)
+
+
+@no_type_check
 def construct_related_field_schema(
     field: Field, *, registry: SchemaRegister, depth: int, skip_registry=False
 ) -> tuple[type['ModelSchema'], PydanticField]:
@@ -166,6 +180,9 @@ def construct_relational_field_info(
     if field.one_to_many or field.many_to_many:
         m2m_type = create_m2m_link_type(inner_type, field.related_model)
         python_type = list[Annotated[inner_type, BeforeValidator(m2m_type.validate)]]
+    else:
+        # Reading an instance yields the related object, not its pk.
+        python_type = Annotated[inner_type, BeforeValidator(convert_relation_to_pk)]
 
     field_info = PydanticField(
         default=default,

@@ -17,17 +17,19 @@ Unrecognised keys are forwarded to Pydantic as model config — see
 
 ## `model`
 
-The Django model to generate fields from. Validated when the class is created:
+The Django model to generate fields from:
 
 ```pycon
->>> class NoModelSchema(ModelSchema):
+>>> class EventSchema(ModelSchema):
 ...     class Config:
-...         fields = ['title']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Invalid Configuration. 'model' is required
+...         model = models.Event
+>>> EventSchema.Config.model is models.Event
+True
 
 ```
+
+Omitting it raises `ConfigError` when the class is created — see the
+[errors reference](errors.md#configerror).
 
 ## `fields`
 
@@ -65,19 +67,7 @@ A deny-list of model field names.
 
 ```
 
-Setting both `fields` and `exclude` raises:
-
-```pycon
->>> class BothSchema(ModelSchema):
-...     class Config:
-...         model = models.Event
-...         fields = ['title']
-...         exclude = ['category']
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Only one of 'fields' or 'exclude' should be set in configuration.
-
-```
+Cannot be combined with `fields`; setting both raises `ConfigError`.
 
 ## `optional`
 

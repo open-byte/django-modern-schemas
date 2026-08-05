@@ -52,15 +52,21 @@ The result is a Pydantic model. It validates a Django instance directly:
 
 ```
 
-It rejects input the database would reject:
+It reads a JSON payload and writes it back through the ORM:
 
 ```pycon
->>> EventSchema.model_validate({'id': 'not-an-integer', 'title': 'DjangoCon'})
-Traceback (most recent call last):
-    ...
-pydantic_core._pydantic_core.ValidationError: 1 validation error for EventSchema...
+>>> class EventCreateSchema(ModelSchema):
+...     class Config:
+...         model = models.Event
+...         fields = ['title']
+>>> created = EventCreateSchema.model_validate({'title': 'PyCon'}).create()
+>>> created.pk is not None
+True
 
 ```
+
+Input that the database would reject is refused first, with a Pydantic
+`ValidationError` you can return as a 400.
 
 And it describes itself as JSON Schema:
 

@@ -62,15 +62,18 @@ False
 
 ```
 
-`fields` and `exclude` are mutually exclusive here too:
+`exclude` works the same way, and — as with `Config` — the two are mutually
+exclusive:
 
 ```pycon
->>> SchemaFactory.create_schema(
-...     models.Event, fields=['title'], exclude=['category'], skip_registry=True
+>>> SummarySchema = SchemaFactory.create_schema(
+...     models.Event,
+...     name='EventSummarySchema',
+...     exclude=['category'],
+...     skip_registry=True,
 ... )
-Traceback (most recent call last):
-    ...
-django_modern_schemas.errors.ConfigError: Only one of 'fields' or 'exclude' should be set.
+>>> list(SummarySchema.model_fields)
+['id', 'title']
 
 ```
 
@@ -150,17 +153,10 @@ def list_events(request: HttpRequest) -> JsonResponse:
 
 !!! warning "Validate the field list yourself"
 
-    An unknown field name raises `ConfigError` at build time. Intersecting with
-    an allow-list, as above, keeps user input from turning into a 500 — and stops
-    a client projecting columns you did not mean to expose.
-
-    ```pycon
-    >>> SchemaFactory.create_schema(models.Event, fields=['password'], skip_registry=True)
-    Traceback (most recent call last):
-        ...
-    django_modern_schemas.errors.ConfigError: Field(s) {'password'} are not in model.
-
-    ```
+    Intersecting with an allow-list, as above, does two jobs: it stops a client
+    projecting columns you did not mean to expose, and it keeps an unknown field
+    name from turning into a 500 — the factory raises `ConfigError` for a name
+    that is not on the model.
 
 ## Related guides
 

@@ -64,21 +64,19 @@ Missing optional values fall back to the declared default:
 Validators, serializers and JSON Schema behave exactly as they do in Pydantic:
 
 ```pycon
->>> from pydantic import field_validator
->>> class StrictTeamSchema(Schema):
+>>> from pydantic import computed_field, field_validator
+>>> class NormalisedTeamSchema(Schema):
 ...     name: str
 ...     @field_validator('name')
 ...     @classmethod
-...     def must_be_titled(cls, value):
-...         if not value.istitle():
-...             raise ValueError('name must be title-cased')
-...         return value
->>> StrictTeamSchema.model_validate({'name': 'Platform'}).name
-'Platform'
->>> StrictTeamSchema.model_validate({'name': 'platform'})
-Traceback (most recent call last):
-    ...
-pydantic_core._pydantic_core.ValidationError: 1 validation error for StrictTeamSchema...
+...     def normalise(cls, value):
+...         return value.strip().title()
+...     @computed_field
+...     @property
+...     def slug(self) -> str:
+...         return self.name.lower().replace(' ', '-')
+>>> NormalisedTeamSchema.model_validate({'name': '  platform team '}).model_dump()
+{'name': 'Platform Team', 'slug': 'platform-team'}
 
 ```
 

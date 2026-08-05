@@ -81,12 +81,35 @@ Reverse `ForeignKey` and reverse `ManyToMany` are skipped when fields are
 collected, so a schema never silently acquires a field that triggers a query.
 Declare them with [`Source`](../guides/source.md#collections).
 
-!!! bug "Forward relations at `depth = 0`"
+!!! note "Relations are written through `<name>_id`"
 
-    The `<name>_id` alias is not applied on read or on write, so a generated
-    `ForeignKey` field cannot round-trip a real instance. See
-    [Relations → Forward relations at depth 0](../guides/relations.md#forward-relations-at-depth-0)
-    for the four working alternatives.
+    `create()` and `update()` detect relation fields and hand the ORM the
+    `<name>_id` attribute, which is the form Django accepts for a primary key.
+    Many-to-many values are applied after the instance is saved, since they need
+    a pk to attach to.
+
+    ```pycon
+    >>> class EventSchema(ModelSchema):
+    ...     class Config:
+    ...         model = models.Event
+    >>> category = models.Category.objects.create(name='Python')
+    >>> EventSchema.model_validate({'title': 'DjangoCon', 'category': category.pk}).create().category_id
+    1
+
+    ```
+
+!!! note "Relations are read as the related primary key"
+
+    A relation field accepts either the related instance or its primary key, so
+    reading a Django object and accepting a pk from a JSON payload both work:
+
+    ```pycon
+    >>> EventSchema.model_validate({'title': 'DjangoCon', 'category': category}).category
+    1
+    >>> EventSchema.model_validate({'title': 'DjangoCon', 'category': category.pk}).category
+    1
+
+    ```
 
 ## What makes a field optional
 

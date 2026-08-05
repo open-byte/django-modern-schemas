@@ -4,7 +4,7 @@ import typing as t
 import pydantic
 import pytest
 from django.db.models import Model as DjangoModel
-from tests.models import Event
+from tests.models import Category, Day, Event, Week
 
 from django_modern_schemas import MethodSource, ModelSchema, SchemaFactory
 from django_modern_schemas.errors import ConfigError
@@ -459,3 +459,103 @@ class TestModelSchema:
         updated_event_schema.title = 'Updated Test Event'
         updated_event = updated_event_schema.save()
         assert updated_event.title == 'Updated Test Event'
+
+    @pytest.mark.django_db
+    def test_save_data_with_fk(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title', 'category']
+
+        category = EventSchema.Config.model._meta.get_field('category').related_model.objects.create(
+            name='Test Category', start_date='2021-06-12', end_date='2021-06-13'
+        )
+
+        event_schema = EventSchema.model_validate({'title': 'Test Event', 'category': category.id})
+
+        saved_event = event_schema.save()
+        assert isinstance(saved_event, Event)
+        assert saved_event.title == 'Test Event'
+        assert saved_event.category == category
+
+    @pytest.mark.django_db
+    def test_dump_returns_the_related_pk_after_saving_a_category(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title', 'category']
+
+        category = Category.objects.create(name='Test Category', start_date='2021-06-12', end_date='2021-06-13')
+
+        event_schema = EventSchema.model_validate({'title': 'Test Event', 'category': category.id})
+        saved_event = event_schema.save()
+
+        assert saved_event.category_id == category.id
+        assert Event.objects.get(pk=saved_event.pk).category_id == category.id
+
+        dumped = event_schema.model_dump()
+        assert dumped['category'] == category.id
+
+        # The ORM is written through the `_id` attribute name, not the field name.
+        assert event_schema.model_dump(by_alias=True)['category'] == category.id
+        assert json.loads(event_schema.model_dump_json())['category'] == category.id
+
+    @pytest.mark.django_db
+    def test_create_assigns_a_foreign_key_given_its_pk(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title', 'category']
+
+        category = Category.objects.create(name='Python', start_date='2021-06-12', end_date='2021-06-13')
+
+        created = EventSchema.model_validate({'title': 'DjangoCon', 'category': category.id}).create()
+
+        assert created.category_id == category.id
+
+    @pytest.mark.django_db
+    def test_update_reassigns_a_foreign_key_given_its_pk(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title', 'category']
+
+        first = Category.objects.create(name='Python', start_date='2021-06-12', end_date='2021-06-13')
+        second = Category.objects.create(name='Rust', start_date='2021-06-12', end_date='2021-06-13')
+        event = Event.objects.create(title='DjangoCon', category=first)
+
+        EventSchema.model_validate({'title': 'RustConf', 'category': second.id}).update(event)
+
+        refreshed = Event.objects.get(pk=event.pk)
+        assert refreshed.title == 'RustConf'
+        assert refreshed.category_id == second.id
+
+    @pytest.mark.django_db
+    def test_create_assigns_many_to_many_after_the_instance_exists(self):
+        class WeekSchema(ModelSchema[Week]):
+            class Config:
+                model = Week
+                fields = ['name', 'days']
+
+        monday = Day.objects.create(name='Monday')
+        tuesday = Day.objects.create(name='Tuesday')
+
+        week = WeekSchema.model_validate({'name': 'Week 1', 'days': [monday.id, tuesday.id]}).create()
+
+        assert sorted(day.id for day in week.days.all()) == sorted([monday.id, tuesday.id])
+
+    @pytest.mark.django_db
+    def test_update_replaces_many_to_many_values(self):
+        class WeekSchema(ModelSchema[Week]):
+            class Config:
+                model = Week
+                fields = ['name', 'days']
+
+        monday = Day.objects.create(name='Monday')
+        tuesday = Day.objects.create(name='Tuesday')
+        week = Week.objects.create(name='Week 1')
+        week.days.add(monday)
+
+        WeekSchema.model_validate({'name': 'Week 1', 'days': [tuesday.id]}).update(week)
+
+        assert [day.id for day in Week.objects.get(pk=week.pk).days.all()] == [tuesday.id]
