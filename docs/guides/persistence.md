@@ -6,7 +6,12 @@ A validated schema can write itself back through the ORM with three methods:
 | --- | --- |
 | `create()` | Creates a new row via the model's default manager. |
 | `update(instance, partial=False)` | Assigns fields onto an existing instance and saves it. |
-| `save(instance=None, partial=None)` | Creates or updates, depending on what it is given. |
+| `save(instance=None, partial=None)` | Creates or updates, depending on what it is given — including the instance the schema was validated from. |
+
+All three return the saved Django instance. Declare the schema as
+`ModelSchema[Event]` and that return value is typed as `Event` rather than being
+opaque to your type checker — see
+[`ModelSchema[Model]`](model-schema.md#modelschemamodel-typing-the-persistence-methods).
 
 ```python title="models.py"
 --8<-- "examples/models.py:event-model"
@@ -178,6 +183,42 @@ True
 
 The resolution order is: an internal `_object` if one is set, then the
 `instance` argument, then `create()`.
+
+### Validating from an instance
+
+`model_validate()` remembers what it was given. When the input is a Django model
+instance, the schema keeps it as its `_object`, so a later `save()` updates that
+row instead of inserting a second one:
+
+```pycon
+>>> stored = models.Event.objects.create(title='Draft')
+>>> schema = EventSchema.model_validate(stored)
+>>> schema.title = 'Published'
+>>> saved = schema.save()
+>>> saved.pk == stored.pk
+True
+>>> models.Event.objects.get(pk=stored.pk).title
+'Published'
+
+```
+
+This is what makes the read → edit → write round trip work without carrying the
+instance around by hand — the schema you validated is already bound to the row it
+came from.
+
+Validating a mapping binds nothing, so `save()` falls through to `create()`:
+
+```pycon
+>>> EventSchema.model_validate({'title': 'Brand new'})._object is None
+True
+
+```
+
+!!! note "The binding survives, the values do not"
+
+    `_object` is only the target of the write. The fields written come from the
+    schema, so editing the schema and calling `save()` is the whole update — you
+    never touch the instance directly.
 
 ## Source fields are skipped
 

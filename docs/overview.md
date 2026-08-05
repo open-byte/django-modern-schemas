@@ -9,6 +9,7 @@ just as importantly — what the library will not do for you.
 | --- | --- |
 | [`Schema`](guides/basic-schema.md) | You want a plain Pydantic model that reads attributes off arbitrary objects. No Django model involved. |
 | [`ModelSchema`](guides/model-schema.md) | You want fields generated from a Django model. This is the main entry point. |
+| [`ModelSchema[Model]`](guides/model-schema.md#modelschemamodel-typing-the-persistence-methods) | Same thing, parameterized, so `create()`, `update()`, and `save()` are typed as returning `Model`. |
 | [`SchemaFactory`](guides/schema-factory.md) | You need a schema built at runtime, when the field list is not known at import time. |
 | [`Source`](guides/source.md) | A field's value lives at a dotted attribute path, or under a different name. |
 | [`MethodSource`](guides/source.md) | A field's value comes from calling a zero-argument model method. |

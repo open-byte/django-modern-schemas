@@ -39,6 +39,57 @@ appear on a `Category` schema unless you declare it yourself with
 
 ```
 
+## `ModelSchema[Model]` — typing the persistence methods
+
+`ModelSchema` is generic in its Django model. Naming the model as a type
+parameter changes nothing at runtime — `Config.model` is still what builds the
+fields — but it tells the type checker what `create()`, `update()`, and `save()`
+give back:
+
+```pycon
+>>> class TypedEventSchema(ModelSchema[models.Event]):
+...     class Config:
+...         model = models.Event
+...         fields = ['title']
+>>> list(TypedEventSchema.model_fields)
+['title']
+>>> type(TypedEventSchema.model_validate({'title': 'DjangoCon'}).create()).__name__
+'Event'
+
+```
+
+The parameter and `Config.model` name the same model, and that repetition is the
+price of the two audiences: the `Config` is read by the metaclass at class
+creation, the parameter by a checker that never runs your code.
+
+| Declaration | `schema.create()` is typed as |
+| --- | --- |
+| `class S(ModelSchema[Event])` | `Event` |
+| `class S(ModelSchema)` | unknown — the checker cannot help you |
+
+So with the parameter, an attribute the model does not have is a reported error
+rather than an `AttributeError` in production:
+
+```python title="schemas.py"
+class TypedEventSchema(ModelSchema[Event]):
+    class Config:
+        model = Event
+        fields = ['title']
+
+
+event = TypedEventSchema.model_validate(payload).create()
+event.title       # ok — Event.title
+event.titel       # error[unresolved-attribute]: Object of type `Event` has no attribute `titel`
+```
+
+Without the parameter both lines type-check, and only the second one crashes.
+
+!!! tip "Worth it wherever you write"
+
+    A schema used only for serialization never calls `create()` or `save()`, so
+    the parameter buys it nothing. Add it on the schemas that persist — that is
+    where an untyped return value spreads through the rest of a view.
+
 ## Selecting fields
 
 ### `fields`

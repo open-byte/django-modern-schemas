@@ -12,7 +12,9 @@ from django.db.models import Field, ManyToManyRel, ManyToOneRel
 from django.db.models import Model as DjangoModel
 from pydantic import BaseModel
 from pydantic._internal._model_construction import ModelMetaclass
+from pydantic.config import ExtraValues
 from pydantic.fields import FieldInfo
+from typing_extensions import Self, override
 
 from ..errors import ConfigError
 from ..pydanticutils import compute_field_annotations
@@ -223,6 +225,34 @@ class SchemaBaseModel(BaseModel, SchemaBaseMixins):
 
 class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
     model_config = {'from_attributes': True, 'ninja_schema_abstract': True}  # ty:ignore[conflicting-metaclass]
+
+    @classmethod
+    @override
+    def model_validate(
+        cls,
+        obj: Any,
+        *,
+        strict: bool | None = None,
+        extra: ExtraValues | None = None,
+        from_attributes: bool | None = None,
+        context: Any | None = None,
+        by_alias: bool | None = None,
+        by_name: bool | None = None,
+    ) -> 'Self':
+        schema = super().model_validate(
+            obj,
+            strict=strict,
+            extra=extra,
+            from_attributes=from_attributes,
+            context=context,
+            by_alias=by_alias,
+            by_name=by_name,
+        )
+
+        if isinstance(obj, DjangoModel):
+            schema._object = obj  # type: ignore[assignment]  # Store the Django model instance for later use in save()
+
+        return schema
 
 
 class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):

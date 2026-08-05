@@ -559,3 +559,34 @@ class TestModelSchema:
         WeekSchema.model_validate({'name': 'Week 1', 'days': [tuesday.id]}).update(week)
 
         assert [day.id for day in Week.objects.get(pk=week.pk).days.all()] == [tuesday.id]
+
+    @pytest.mark.django_db
+    def test_model_validate_keeps_the_instance_so_save_updates_it(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title']
+
+        event = Event.objects.create(title='Original')
+
+        schema = EventSchema.model_validate(event)
+        assert schema._object == event
+
+        schema.title = 'Updated'
+        saved = schema.save()
+
+        assert saved.pk == event.pk
+        assert Event.objects.get(pk=event.pk).title == 'Updated'
+        assert Event.objects.count() == 1  # updated in place, not duplicated
+
+    @pytest.mark.django_db
+    def test_model_validate_from_a_mapping_leaves_save_creating(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title']
+
+        schema = EventSchema.model_validate({'title': 'Brand new'})
+
+        assert schema._object is None
+        assert schema.save().pk is not None
