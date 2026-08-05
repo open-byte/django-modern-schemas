@@ -20,25 +20,54 @@ theme:
     logo: material/book-open-page-variant
     repo: fontawesome/brands/github
   palette:
-    scheme: default
-    primary: teal
-    accent: amber
+    # Dark by default, with a toggle for readers who prefer a light page.
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
   features:
     - content.action.edit
+    - content.code.annotate
     - content.code.copy
+    - content.tabs.link
+    - navigation.indexes
     - navigation.sections
     - navigation.tabs
     - navigation.top
+    - navigation.tracking
     - search.highlight
     - search.suggest
+    - toc.follow
+
+# conftest.py lives in docs/ so pytest can execute the examples on each page;
+# it is not content and must not be published.
+exclude_docs: |
+  conftest.py
 
 plugins:
   - search
 
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
@@ -76,6 +105,9 @@ nav:
       - Persistence: guides/persistence.md
   - Reference:
       - ModelSchema Configuration: reference/configuration.md
+      - Field Reference: reference/fields.md
+      - Errors: reference/errors.md
   - Project:
+      - How These Docs Are Tested: project/testing.md
       - Credits and Stewardship: project/credits.md
       - Publishing Documentation: project/publishing.md

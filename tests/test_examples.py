@@ -153,11 +153,35 @@ def test_example_indexes_link_to_every_tutorial():
     assert '](docs/index.md)' in project_readme
 
 
-@pytest.mark.parametrize(('example_name', 'guide_name'), MATERIAL_GUIDES.items())
-def test_material_guide_embeds_its_tested_example(example_name: str, guide_name: str):
+@pytest.mark.parametrize('guide_name', sorted(MATERIAL_GUIDES.values()))
+def test_material_guide_contains_executed_examples(guide_name: str):
+    """Each guide must teach with console transcripts, which pytest executes as doctests.
+
+    The examples themselves are verified by `pytest --doctest-glob=*.md`; this only
+    guards the contract that a guide has them at all.
+    """
     guide = (DOCS_DIRECTORY / guide_name).read_text()
 
-    assert f'--8<-- "examples/{example_name}.py"' in guide
+    assert '```pycon' in guide, f'{guide_name} has no executed example blocks'
+    assert '>>> ' in guide
+
+
+@pytest.mark.parametrize('snippet_name', ['category-model', 'event-model', 'question-model', 'week-models'])
+def test_referenced_model_snippets_exist(snippet_name: str):
+    """Guides embed model definitions by snippet marker; a missing marker breaks the build."""
+    models_source = (EXAMPLES_DIRECTORY / 'models.py').read_text()
+
+    assert f'# --8<-- [start:{snippet_name}]' in models_source
+    assert f'# --8<-- [end:{snippet_name}]' in models_source
+
+
+def test_every_documentation_page_is_in_the_navigation():
+    navigation = (DOCS_DIRECTORY.parent / 'mkdocs.yml').read_text()
+    pages = (path.relative_to(DOCS_DIRECTORY).as_posix() for path in DOCS_DIRECTORY.rglob('*.md'))
+
+    missing = [page for page in pages if page not in navigation]
+
+    assert not missing, f'pages missing from mkdocs.yml nav: {missing}'
 
 
 def test_material_credits_recognize_open_byte_and_original_creator():

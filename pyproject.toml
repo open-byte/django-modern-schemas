@@ -30,6 +30,16 @@ tests = [
 docs = [
     "mkdocs-material>=9.7.0",
 ]
+[tool.pytest.ini_options]
+# `--doctest-glob=*.md` turns every `>>>` block in docs/ into a test, so the
+# outputs shown in the published documentation cannot drift from the library.
+addopts = "--doctest-glob=*.md --doctest-continue-on-failure"
+testpaths = ["tests", "docs"]
+# tests/testapp is the isolated Django project; its `app` package is imported
+# directly by tests/testapp/app/tests/*.
+pythonpath = ["tests/testapp"]
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS", "IGNORE_EXCEPTION_DETAIL"]
+
 [tool.ruff]
 src=["src"]
 exclude = ["migrations"]

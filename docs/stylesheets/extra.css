@@ -1,3 +1,5 @@
+/* Brand palette ---------------------------------------------------------- */
+
 :root {
   --md-primary-fg-color: #0f766e;
   --md-primary-fg-color--light: #14b8a6;
@@ -5,10 +7,88 @@
   --md-accent-fg-color: #b45309;
 }
 
+/* Dark scheme: keep teal readable against the slate background and warm the
+   accent so links stay legible. */
+[data-md-color-scheme='slate'] {
+  --md-primary-fg-color: #0d9488;
+  --md-primary-fg-color--light: #2dd4bf;
+  --md-primary-fg-color--dark: #0f766e;
+  --md-accent-fg-color: #fbbf24;
+  --md-default-bg-color: #10161d;
+  --md-code-bg-color: #161f28;
+  --md-code-fg-color: #d6deeb;
+}
+
+/* Typography ------------------------------------------------------------- */
+
 .md-typeset h1 {
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
+
+.md-typeset h2 {
+  font-weight: 600;
+  margin-top: 2.2em;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  padding-bottom: 0.3em;
+}
+
+/* Code ------------------------------------------------------------------- */
 
 .md-typeset .highlight {
   border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.25rem;
+}
+
+[data-md-color-scheme='slate'] .md-typeset .highlight {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* Console blocks (```pycon) are executed doctests. Mark them so readers can
+   tell a verified transcript from a plain snippet. */
+.md-typeset .language-pycon {
+  border-left: 3px solid var(--md-primary-fg-color--light);
+}
+
+/* Tables ----------------------------------------------------------------- */
+
+.md-typeset table:not([class]) {
+  font-size: 0.72rem;
+}
+
+.md-typeset table:not([class]) th {
+  font-weight: 600;
+  background-color: var(--md-default-fg-color--lightest);
+}
+
+[data-md-color-scheme='slate'] .md-typeset table:not([class]) th {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Landing page ----------------------------------------------------------- */
+
+.dms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.8rem;
+  margin: 1.4rem 0;
+}
+
+.dms-card {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.3rem;
+  padding: 0.9rem 1rem;
+  background-color: var(--md-code-bg-color);
+}
+
+.dms-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.dms-card p {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--md-default-fg-color--light);
 }

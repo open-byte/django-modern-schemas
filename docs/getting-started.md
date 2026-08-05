@@ -1,10 +1,7 @@
 # Getting Started
 
-## Requirements
-
-- Python 3.10 or newer
-- Django 3.2 or newer
-- Pydantic 2.13.4 or newer
+A worked tutorial: from a Django model to a validated, serialized, documented
+boundary. Every transcript below is executed by the test suite.
 
 ## Install
 
@@ -20,29 +17,227 @@
     pip install django-modern-schemas
     ```
 
-## Define a ModelSchema
+| Requirement | Version |
+| --- | --- |
+| Python | 3.10 or newer |
+| Django | 3.2 or newer |
+| Pydantic | 2.13 or newer |
 
-Import `ModelSchema`, declare the Django model, and choose the fields exposed by
-the boundary. Use `fields`, not `include`.
+Install the Pydantic extras that match the Django fields you use:
 
-```python title="examples/model_schema.py"
---8<-- "examples/model_schema.py"
+```bash
+pip install "pydantic[email]"     # EmailField -> EmailStr
+pip install "pydantic[timezone]"  # timezone-aware datetimes
 ```
 
-Validate ORM objects with `model_validate()` and serialize them with
-`model_dump()`:
+You do **not** add anything to `INSTALLED_APPS`. Schemas are ordinary Python
+classes.
 
-```python
-data = EventSummarySchema.model_validate(event).model_dump()
+## The models used in this tutorial
+
+```python title="models.py"
+--8<-- "examples/models.py:category-model"
+
+--8<-- "examples/models.py:event-model"
 ```
 
-Replace the relative import from `examples.models` in the example with the model
-from your Django application.
+## Step 1 — Declare a schema
 
-## Next Steps
+A `ModelSchema` names its Django model in a nested `Config` class. Here we
+expose everything except the relation, which the [Relations](guides/relations.md)
+guide covers separately.
 
-- Learn how to select, exclude, and nest fields in the
-  [ModelSchema guide](guides/model-schema.md).
-- Use [Source and MethodSource](guides/source.md) for derived read-only output
-  fields.
-- Generate schemas dynamically with [SchemaFactory](guides/schema-factory.md).
+```pycon
+>>> class EventSchema(ModelSchema):
+...     class Config:
+...         model = models.Event
+...         exclude = ['category']
+
+```
+
+The generated Pydantic fields:
+
+```pycon
+>>> list(EventSchema.model_fields)
+['id', 'title']
+
+```
+
+`title` is required, and `id` is not:
+
+```pycon
+>>> EventSchema.model_fields['title'].is_required()
+True
+>>> EventSchema.model_fields['id'].is_required()
+False
+
+```
+
+!!! note "Why the primary key is optional here"
+
+    A schema that you use for both input and output cannot demand a pk that does
+    not exist yet, so the pk is made optional automatically — **unless you name
+    it in `fields` yourself**, which reads as a deliberate request for it:
+
+    ```pycon
+    >>> class ExplicitPkSchema(ModelSchema):
+    ...     class Config:
+    ...         model = models.Event
+    ...         fields = ['id', 'title']
+    >>> ExplicitPkSchema.model_fields['id'].is_required()
+    True
+
+    ```
+
+    The full rule is in
+    [ModelSchema → The primary key rule](guides/model-schema.md#the-primary-key-rule).
+
+## Step 2 — Validate incoming data
+
+```pycon
+>>> schema = EventSchema.model_validate({'title': 'DjangoCon'})
+>>> schema.title
+'DjangoCon'
+>>> schema.id is None
+True
+
+```
+
+Invalid input raises Pydantic's `ValidationError`, using the constraint declared
+on the Django field:
+
+```pycon
+>>> EventSchema.model_validate({'title': 'x' * 200})
+Traceback (most recent call last):
+    ...
+pydantic_core._pydantic_core.ValidationError: 1 validation error for EventSchema...
+
+```
+
+The rule that failed is `max_length=100`, which the schema never restated:
+
+```pycon
+>>> try:
+...     EventSchema.model_validate({'title': 'x' * 200})
+... except Exception as error:
+...     print(error.errors()[0]['type'], error.errors()[0]['ctx'])
+string_too_long {'max_length': 100}
+
+```
+
+## Step 3 — Serialize a model instance
+
+The same schema reads a Django instance, because `from_attributes` is enabled:
+
+```pycon
+>>> event = models.Event(id=7, title='DjangoCon')
+>>> EventSchema.model_validate(event).model_dump()
+{'id': 7, 'title': 'DjangoCon'}
+
+```
+
+For a JSON response, use Pydantic's JSON mode:
+
+```pycon
+>>> EventSchema.model_validate(event).model_dump_json()
+'{"id":7,"title":"DjangoCon"}'
+
+```
+
+## Step 4 — Persist validated data
+
+`create()` writes the flat fields through the model's default manager:
+
+```pycon
+>>> created = EventSchema.model_validate({'title': 'PyCon'}).create()
+>>> created.pk is not None
+True
+>>> created.title
+'PyCon'
+
+```
+
+`update()` writes onto an existing instance and saves it:
+
+```pycon
+>>> _ = EventSchema.model_validate({'title': 'PyCon US'}).update(created)
+>>> models.Event.objects.get(pk=created.pk).title
+'PyCon US'
+
+```
+
+See [Persistence](guides/persistence.md) for partial updates, `save()`, and the
+rules around nested schemas.
+
+## Step 5 — Publish the contract
+
+`model_json_schema()` returns a JSON Schema you can hand to OpenAPI tooling:
+
+```pycon
+>>> print(json.dumps(EventSchema.model_json_schema(), indent=2))
+{
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "",
+      "title": "Id"
+    },
+    "title": {
+      "description": "",
+      "maxLength": 100,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "EventSchema",
+  "type": "object"
+}
+
+```
+
+## Using it in a Django view
+
+Schemas are plain Pydantic models, so they drop into any view layer:
+
+```python title="views.py"
+import json
+
+from django.http import HttpRequest, JsonResponse
+from pydantic import ValidationError
+
+from .models import Event
+from .schemas import EventSchema
+
+
+def create_event(request: HttpRequest) -> JsonResponse:
+    try:
+        schema = EventSchema.model_validate(json.loads(request.body))
+    except ValidationError as error:
+        return JsonResponse({'errors': error.errors()}, status=400)
+
+    event = schema.create()
+    return JsonResponse(EventSchema.model_validate(event).model_dump(), status=201)
+
+
+def list_events(request: HttpRequest) -> JsonResponse:
+    events = [EventSchema.model_validate(event).model_dump() for event in Event.objects.all()]
+    return JsonResponse({'results': events})
+```
+
+## Next steps
+
+- [ModelSchema](guides/model-schema.md) — `fields`, `exclude`, `optional`, `depth`
+- [Field reference](reference/fields.md) — what each Django field becomes
+- [Source and MethodSource](guides/source.md) — renamed and computed fields
+- [Relations](guides/relations.md) — foreign keys, many-to-many, nesting
