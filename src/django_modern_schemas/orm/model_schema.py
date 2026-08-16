@@ -67,6 +67,7 @@ class ModelSchemaConfig:
     def clone_field(cls, field: FieldInfo, **kwargs: Any) -> FieldInfo:
         field_dict = dict(field.__repr_args__())
         field_dict.update(**kwargs)
+        # pyrefly: ignore [bad-unpacking]
         new_field = FieldInfo(**field_dict)
         return new_field
 
