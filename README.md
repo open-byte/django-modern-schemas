@@ -9,15 +9,15 @@ generate these schemas. It is maintained by
 
 📚 **Full documentation: [open-byte.github.io/django-modern-schemas](https://open-byte.github.io/django-modern-schemas/)**
 
-## Version
-
-The project starts at version `0.0.1`.
+[![PyPI](https://img.shields.io/pypi/v/django-modern-schemas.svg)](https://pypi.org/project/django-modern-schemas/)
+[![Python versions](https://img.shields.io/pypi/pyversions/django-modern-schemas.svg)](https://pypi.org/project/django-modern-schemas/)
+[![License](https://img.shields.io/pypi/l/django-modern-schemas.svg)](LICENSE)
 
 ## Requirements
 
 - Python 3.10 or newer
 - Django 3.2 or newer
-- Pydantic 2.13.4 or newer
+- Pydantic 2.12 or newer
 
 ## Quick start
 
@@ -185,7 +185,7 @@ uv run --group docs mkdocs serve
 - [Source and MethodSource Guide](https://open-byte.github.io/django-modern-schemas/guides/source/)
 - [Configuration Reference](https://open-byte.github.io/django-modern-schemas/reference/configuration/)
 - [Credits and Stewardship](https://open-byte.github.io/django-modern-schemas/project/credits/)
-- [Publishing Documentation](https://open-byte.github.io/django-modern-schemas/project/publishing/)
+- [Publishing](https://open-byte.github.io/django-modern-schemas/project/publishing/)
 
 ## Schema configuration
 

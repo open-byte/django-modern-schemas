@@ -14,8 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
       fail-fast: false
+
+    # Without this, uv reads `.python-version` (3.10) and every cell of the matrix
+    # silently runs on the same interpreter, whatever setup-python installed.
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
       - uses: actions/checkout@v6
@@ -33,6 +38,48 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/tests/testapp
         run: uv run --group tests pytest
+
+  # The job above always resolves from the lock. This one pins the Django and Pydantic
+  # versions the package claims to support, so the declared floors are executed instead
+  # of merely promised.
+  compat:
+    runs-on: ubuntu-latest
+    name: django ${{ matrix.django }} / py${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: '3.10', django: '3.2', pydantic: '2.12' }  # both declared floors
+          - { python: '3.10', django: '4.2', pydantic: '2.13' }  # LTS
+          - { python: '3.12', django: '5.2', pydantic: '2.13' }  # LTS
+          - { python: '3.12', django: '6.0', pydantic: '2.13' }
+          - { python: '3.13', django: '6.1', pydantic: '2.13' }
+
+    # Django 6.x requires Python >=3.12, so a cell that fell back to `.python-version`
+    # (3.10) could not even install its pin.
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --group tests
+      - name: Pin Django and Pydantic for this cell
+        run: uv pip install "django~=${{ matrix.django }}.0" "pydantic[email]~=${{ matrix.pydantic }}.0"
+      # --no-sync, or uv would resolve from the lock again and undo the pin above.
+      - name: Test
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tests/testapp
+        run: uv run --no-sync --group tests pytest
+
   lint:
     runs-on: ubuntu-latest
 
@@ -50,6 +97,9 @@ jobs:
         run: uv sync --locked --group dev
       - name: Ruff
         run: uv run --group dev ruff check --ignore F401 src tests examples
+      - name: Pyrefly
+        run: uv run --group dev pyrefly check src
+
   docs:
     runs-on: ubuntu-latest
 

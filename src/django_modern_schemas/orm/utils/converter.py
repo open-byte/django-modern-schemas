@@ -75,7 +75,9 @@ class FieldConversionProps:
         if not field.is_relation:
             data['blank'] = field_options.get('blank', False)
             data['is_null'] = field_options.get('null', False)
+            # pyrefly: ignore [unsupported-operation]
             data['max_length'] = field_options.get('max_length')
+            # pyrefly: ignore [bad-argument-type]
             data.update(alias=None)
 
         if field.is_relation and hasattr(field, 'get_attname'):
@@ -352,6 +354,7 @@ def convert_time_to_string(field: Field, **kwargs: DictStrAny) -> tuple[type, Py
 
 
 @no_type_check
+# pyrefly: ignore [bad-singledispatch-register]
 @convert_django_field.register(models.OneToOneRel)
 def convert_one_to_one_field_to_django_model(
     field: Field, registry=None, depth=0, **kwargs: DictStrAny
@@ -361,7 +364,9 @@ def convert_one_to_one_field_to_django_model(
 
 @no_type_check
 @convert_django_field.register(models.ManyToManyField)
+# pyrefly: ignore [bad-singledispatch-register]
 @convert_django_field.register(models.ManyToManyRel)
+# pyrefly: ignore [bad-singledispatch-register]
 @convert_django_field.register(models.ManyToOneRel)
 def convert_field_to_list_or_connection(
     field: Field, registry=None, depth=0, skip_registry=False, **kwargs: DictStrAny

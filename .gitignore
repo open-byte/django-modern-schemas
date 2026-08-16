@@ -3,9 +3,16 @@
 .vscode
 .mypy_cache
 .coverage
+coverage.xml
 htmlcov
+.pytest_cache
+.ruff_cache
 
 dist
+build
+*.egg-info
+*.whl
+*.tar.gz
 test.py
 
 docs/site

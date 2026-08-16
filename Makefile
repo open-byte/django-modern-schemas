@@ -1,4 +1,4 @@
-.PHONY: help docs docs-build
+.PHONY: help docs docs-build clean install install-full lint typecheck fmt format test test-cov build publish-test publish
 .DEFAULT_GOAL := help
 
 help:
@@ -17,23 +17,34 @@ clean: ## Removing cached python compiled files
 	find . -name __pycache__  | xargs  rm -rfv
 	find . -name .ruff_cache  | xargs  rm -rfv
 
-install:clean ## Install dependencies
-	pip install -r requirements.txt
-	flit install --deps develop --symlink
+install: ## Install every dependency group into the local environment
+	uv sync --group dev --group tests --group docs
 
 install-full:install ## Install dependencies with pre-commit
-	pre-commit install -f
+	uv run pre-commit install -f
 
-lint:fmt ## Run code linters
-	ruff check ninja_schema tests
-	mypy  ninja_schema
+lint: ## Run code linters
+	uv run ruff check --ignore F401 src tests examples
 
-fmt format:clean ## Run code formatters
-	ruff format ninja_schema tests
-	ruff check --fix ninja_schema tests
+typecheck: ## Run the type checker over the shipped package
+	uv run pyrefly check src
 
-test:clean ## Run tests
-	pytest .
+fmt format: ## Run code formatters
+	uv run ruff format src tests examples
+	uv run ruff check --fix src tests examples
 
-test-cov:clean ## Run tests with coverage
-	pytest --cov=ninja_schema --cov-report term-missing tests
+test: ## Run tests and documentation doctests
+	uv run --group tests pytest
+
+test-cov: ## Run tests with coverage
+	uv run --group tests pytest --cov=django_modern_schemas --cov-report term-missing
+
+build:clean ## Build the sdist and the wheel into dist/
+	rm -rf dist
+	uv build
+
+publish-test:build ## Upload to TestPyPI (needs UV_PUBLISH_TOKEN of test.pypi.org)
+	uv publish --index testpypi
+
+publish:build ## Upload to PyPI (needs UV_PUBLISH_TOKEN of pypi.org)
+	uv publish

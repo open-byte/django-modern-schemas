@@ -59,6 +59,7 @@ class SchemaFactory:
             'optional': optional_fields,
             **model_config_options,
         }
+        # pyrefly: ignore [bad-argument-type]
         cls.get_model_config(**model_config_kwargs)
         new_schema = cls._get_schema(name, model_config_kwargs, ModelSchema)
 
@@ -78,4 +79,5 @@ class SchemaFactory:
                 pass """
 
         exec(new_schema_string, locals(), new_schema_result)
+        # pyrefly: ignore [bad-return]
         return new_schema_result.get(name)

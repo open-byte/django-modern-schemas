@@ -73,6 +73,7 @@ class ModelSchemaConfig:
 
     def model_fields(self) -> Iterator[Field]:
         """returns iterator with all the fields that can be part of schema"""
+        # pyrefly: ignore [missing-attribute]
         for fld in self.model._meta.get_fields():  # ty:ignore[unresolved-attribute]
             if isinstance(fld, (ManyToOneRel, ManyToManyRel)):
                 # skipping relations
@@ -229,6 +230,7 @@ class SchemaBaseModel(BaseModel, SchemaBaseMixins):
 
 
 class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
+    # pyrefly: ignore [bad-typed-dict-key]
     model_config = {'from_attributes': True, 'ninja_schema_abstract': True}  # ty:ignore[conflicting-metaclass]
 
     @classmethod
@@ -261,4 +263,5 @@ class BaseModelSchema(SchemaBaseModel, metaclass=ModelSchemaMetaclass):
 
 
 class ModelSchema(BaseModelSchema, SchemaOperationMixin[T]):
+    # pyrefly: ignore [bad-typed-dict-key]
     model_config = {'from_attributes': True, 'ninja_schema_abstract': True}
