@@ -40,8 +40,12 @@ def _contains_basemodel(tp) -> bool:
     return False
 
 
-def freeze_source_annotation(annotation: Any) -> Any:
-    """Returns the annotation as a frozen field when it carries `Source` or `MethodSource`."""
+def adapt_field_annotation(annotation: Any) -> Any:
+    """Returns the annotation adjusted for the field it declares.
+
+    `Source` and `MethodSource` become frozen fields; every other annotation is
+    returned untouched.
+    """
     if any(isinstance(meta, (Source, MethodSource)) for meta in getattr(annotation, '__metadata__', ())):
         return Annotated[annotation, Field(frozen=True)]
     return annotation
