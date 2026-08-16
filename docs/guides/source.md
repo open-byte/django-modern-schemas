@@ -10,7 +10,10 @@ the model attribute of the same name.
 | `Source('name')` | On the instance, but exposed under a different field name. |
 | `MethodSource('display_title')` | The return value of a zero-argument method. |
 
-Both are read-only: they say how to *read* a value, not where to store it.
+Both are read-only: they say how to *read* a value, not where to store it. On a
+`ModelSchema` the field they annotate is
+[frozen](#source-fields-are-never-written), and `create()` and `update()` skip
+it.
 
 ## Flattening a relation into the response
 
@@ -232,6 +235,22 @@ read from the path, and the column is left alone:
 'DjangoCon'
 
 ```
+
+The field is also frozen, so assigning to it fails where the mistake is made
+instead of silently doing nothing at save time:
+
+```pycon
+>>> from pydantic import ValidationError
+>>> try:
+...     schema.title = 'RustConf'
+... except ValidationError as error:
+...     print(error.errors()[0]['type'], '-', error.errors()[0]['msg'])
+frozen_field - Field is frozen
+
+```
+
+Every other field stays writable — freezing applies only to what `Source` and
+`MethodSource` annotate.
 
 ## Resolving without a schema
 
