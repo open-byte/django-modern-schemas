@@ -195,19 +195,15 @@ class BaseMixins:
         handler: 'ModelWrapValidatorHandlerAny',
         info: ValidationInfo,
     ) -> Any:
-        """
-        If Pydantic intends to validate against the __dict__ of the immediate Schema
-        object, then we need to call `handler` directly on `values` before the conversion
-        to DjangoGetter, since any checks or modifications on DjangoGetter's __dict__
-        will not persist to the original object.
-        """
-        forbids_extra = cls.model_config.get('extra') == 'forbid'
-        should_validate_assignment = cls.model_config.get('validate_assignment', False)
-        if forbids_extra or should_validate_assignment:
+        if isinstance(values, BaseModel):
+            return handler(values)
+
+        # `extra='forbid'` can only be checked before wrapping: DjangoGetter's
+        # __getattr__ hides a dict's leftover keys.
+        if isinstance(values, dict) and cls.model_config.get('extra') == 'forbid':
             handler(values)
 
-        values = DjangoGetter(values, cls, info.context)
-        return handler(values)
+        return handler(DjangoGetter(values, cls, info.context))
 
 
 class SchemaBaseMixins(BaseMixins):
