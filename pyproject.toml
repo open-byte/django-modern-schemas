@@ -14,10 +14,7 @@ requires-python = ">=3.10,<3.14"
 keywords =["django", "pydantic", "schema", "serialization", "validation", "orm", "openapi"]
 dependencies = [
     "django>=3.2",
-    # `[email]` because EmailField is mapped to EmailStr, which needs email-validator.
-    # Capped below 3 because model_schema.py imports pydantic._internal.
     "pydantic[email]>=2.12,<3",
-    # `Self` and `override` are stdlib only from 3.11 and 3.12; this package supports 3.10.
     "typing-extensions>=4.4",
 ]
 classifiers = [
@@ -54,13 +51,13 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "django>=3.2",
+    "django-stubs>=6.0.7",
     "pydantic[email,timezone]>=2.13.4",
     "pyrefly>=1.2.0",
     "ruff>=0.16.0",
     "ty>=0.0.63",
 ]
 tests = [
-    "django-stubs>=6.0.7",
     "pytest>=9.1.1",
     "pytest-cov>=6.0",
     "pytest-django>=4.12.0",
@@ -69,8 +66,6 @@ docs = [
     "mkdocs-material>=9.7.0",
 ]
 
-# TestPyPI is a separate index; `explicit` keeps it out of normal resolution so it
-# is only used when named: `uv publish --index testpypi`.
 [[tool.uv.index]]
 name = "testpypi"
 url = "https://test.pypi.org/simple/"
@@ -78,21 +73,16 @@ publish-url = "https://test.pypi.org/legacy/"
 explicit = true
 
 [tool.pytest.ini_options]
-# `--doctest-glob=*.md` turns every `>>>` block in docs/ into a test, so the
-# outputs shown in the published documentation cannot drift from the library.
 addopts = "--doctest-glob=*.md --doctest-continue-on-failure"
 testpaths = ["tests", "docs"]
-# tests/testapp is the isolated Django project; its `app` package is imported
-# directly by tests/testapp/app/tests/*.
+
 pythonpath = ["tests/testapp"]
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS", "IGNORE_EXCEPTION_DETAIL"]
 
 [tool.pyrefly]
 project-includes = ["src", "tests", "examples"]
 project-excludes = ["**/migrations/**", "**/__pycache__/**", ".venv/**"]
-# `examples/` modules import each other by bare name (`from models import ...`), and the
-# Django app under tests/testapp is imported as a top-level package — the same paths
-# pytest gets from `pythonpath`.
+
 search-path = ["src", ".", "examples", "tests/testapp"]
 
 [tool.ruff]
