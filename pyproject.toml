@@ -1,13 +1,51 @@
 [project]
 name = "django-modern-schemas"
-version = "0.0.1"
-description = "Add your description here"
+version = "0.1.0"
+description = "Generate Pydantic schemas from Django ORM models, reusing model types, constraints, defaults and relationships."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    { name = "Izcar J. Munoz Torrez", email = "izcarmt95+gitlab.com@gmail.com" }
+    { name = "Izcar J. Munoz Torrez", email = "izcarmt95@gmail.com" }
 ]
-requires-python = ">=3.10"
-dependencies = []
+# Capped below 3.14: PEP 649 defers class annotations, so the metaclass sees an empty
+# `__annotations__` and silently drops Source/MethodSource fields. Lift once that is fixed.
+requires-python = ">=3.10,<3.14"
+keywords =["django", "pydantic", "schema", "serialization", "validation", "orm", "openapi"]
+dependencies = [
+    "django>=3.2",
+    # `[email]` because EmailField is mapped to EmailStr, which needs email-validator.
+    # Capped below 3 because model_schema.py imports pydantic._internal.
+    "pydantic[email]>=2.12,<3",
+    # `Self` and `override` are stdlib only from 3.11 and 3.12; this package supports 3.10.
+    "typing-extensions>=4.4",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 3.2",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://open-byte.github.io/django-modern-schemas/"
+Documentation = "https://open-byte.github.io/django-modern-schemas/"
+Repository = "https://github.com/open-byte/django-modern-schemas"
+Issues = "https://github.com/open-byte/django-modern-schemas/issues"
 
 [build-system]
 requires = ["uv_build>=0.11.32,<0.12.0"]
@@ -30,6 +68,15 @@ tests = [
 docs = [
     "mkdocs-material>=9.7.0",
 ]
+
+# TestPyPI is a separate index; `explicit` keeps it out of normal resolution so it
+# is only used when named: `uv publish --index testpypi`.
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
 [tool.pytest.ini_options]
 # `--doctest-glob=*.md` turns every `>>>` block in docs/ into a test, so the
 # outputs shown in the published documentation cannot drift from the library.
@@ -39,6 +86,14 @@ testpaths = ["tests", "docs"]
 # directly by tests/testapp/app/tests/*.
 pythonpath = ["tests/testapp"]
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS", "IGNORE_EXCEPTION_DETAIL"]
+
+[tool.pyrefly]
+project-includes = ["src", "tests", "examples"]
+project-excludes = ["**/migrations/**", "**/__pycache__/**", ".venv/**"]
+# `examples/` modules import each other by bare name (`from models import ...`), and the
+# Django app under tests/testapp is imported as a top-level package — the same paths
+# pytest gets from `pythonpath`.
+search-path = ["src", ".", "examples", "tests/testapp"]
 
 [tool.ruff]
 src=["src"]

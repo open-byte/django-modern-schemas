@@ -34,6 +34,7 @@ class SchemaOperationMixin(Generic[M]):
     def _source_field_names(self) -> set[str]:
         return {
             field_name
+            # pyrefly: ignore [missing-attribute]
             for field_name, field_info in self.__class__.model_fields.items()  # ty:ignore[unresolved-attribute]
             if any(isinstance(metadata, (Source, MethodSource)) for metadata in field_info.metadata)
         }
@@ -60,6 +61,7 @@ class SchemaOperationMixin(Generic[M]):
             if field.many_to_many:
                 many_to_many[name] = value
             elif field.is_relation and field.concrete and not isinstance(value, DjangoModel):
+                # pyrefly: ignore [missing-attribute]
                 direct.setdefault(field.attname, value)
             else:
                 direct[name] = value
@@ -78,6 +80,7 @@ class SchemaOperationMixin(Generic[M]):
         If `partial` is True, only updates fields that are set.
         This method can be overridden to implement custom update logic.
         """
+        # pyrefly: ignore [bad-argument-type]
         if has_child_model(self.__class__):  # ty:ignore[invalid-argument-type]
             raise NotImplementedError(
                 'Updating models with child Pydantic models is not supported yet. '
@@ -85,6 +88,7 @@ class SchemaOperationMixin(Generic[M]):
             )
 
         source_field_names = self._source_field_names()
+        # pyrefly: ignore [missing-attribute]
         dumped = self.model_dump(exclude_unset=bool(partial), by_alias=True)  # ty:ignore[unresolved-attribute]
         data = {attr: value for attr, value in dumped.items() if attr not in source_field_names}
 
@@ -120,18 +124,22 @@ class SchemaOperationMixin(Generic[M]):
 
 
         """
+        # pyrefly: ignore [bad-argument-type]
         if has_child_model(self.__class__):  # ty:ignore[invalid-argument-type]
             raise NotImplementedError(
                 'Creating models with child Pydantic models is not supported yet. '
                 'Please override the `create` method in your schema.'
             )
+        # pyrefly: ignore [missing-attribute]
         ModelClass: type[M] = self.Config.model  # ty:ignore[unresolved-attribute]
+        # pyrefly: ignore [missing-attribute]
         exclude_computed_fields = self.model_computed_fields.keys()  # ty:ignore[unresolved-attribute]
         excluded_fields = set(exclude_computed_fields) | self._source_field_names()
 
         ## Just in case,  by_alias=True is used to insert related fields
         ## that are not part of the model, but are needed for creation.
         ## the instance.
+        # pyrefly: ignore [missing-attribute]
         data = self.model_dump(exclude=excluded_fields, by_alias=True, **kwargs)  # ty:ignore[unresolved-attribute]
 
         # Many-to-many values are not valid arguments to `create()`: they require the
@@ -187,6 +195,7 @@ class SchemaOperationMixin(Generic[M]):
 class BaseMixins:
     model_config: dict[str, Any]
 
+    # pyrefly: ignore [bad-argument-type]
     @model_validator(mode='wrap')
     @classmethod
     def _run_root_validator(

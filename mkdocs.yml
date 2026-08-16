@@ -110,4 +110,4 @@ nav:
   - Project:
       - How These Docs Are Tested: project/testing.md
       - Credits and Stewardship: project/credits.md
-      - Publishing Documentation: project/publishing.md
+      - Publishing: project/publishing.md

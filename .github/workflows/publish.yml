@@ -5,24 +5,45 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/django-modern-schemas/
+    permissions:
+      # Trusted Publishing: PyPI verifies this workflow's OIDC identity, so no API
+      # token is stored in the repository. Configure the publisher once at
+      # https://pypi.org/manage/project/django-modern-schemas/settings/publishing/
+      id-token: write
+
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.8
-      - name: Install Flit
-        run: pip install flit
-      - name: Install Dependencies
-        run: make install
-      - name: Install build dependencies
-        run: pip install build
-      - name: Build distribution
-        run: python -m build
+          enable-cache: true
+
+      # A release tagged v0.1.1 that ships 0.1.0 would burn the wrong version on PyPI
+      # permanently, so fail before building rather than after uploading.
+      - name: Check the tag matches the packaged version
+        if: github.event_name == 'release'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(uv version --short)"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag ${tag} does not match project version ${version}"
+            exit 1
+          fi
+
+      - name: Build
+        run: uv build
+
+      - name: Check metadata
+        run: uv run --with twine twine check dist/*
+
       - name: Publish
-        uses: pypa/gh-action-pypi-publish@v1.13.0
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish --trusted-publishing always
