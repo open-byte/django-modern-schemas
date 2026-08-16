@@ -112,7 +112,7 @@ block, or an external payload:
 | Fields | You declare them | Generated from the model |
 | Requires `Config.model` | No | Yes |
 | `create()` / `update()` | Not available | Available |
-| `Source` / `MethodSource` | Resolved | Resolved |
+| `Source` / `MethodSource` | Resolved | Resolved, and read-only |
 
 !!! tip "`Source` works here too"
 

@@ -21,6 +21,7 @@ from ..pydanticutils import compute_field_annotations
 from .mixins import SchemaBaseMixins, SchemaOperationMixin
 from .schema_registry import registry as global_registry
 from .utils.converter import convert_django_field_with_choices
+from .utils.utils import adapt_field_annotation
 
 ALL_FIELDS = '__all__'
 
@@ -66,6 +67,7 @@ class ModelSchemaConfig:
     def clone_field(cls, field: FieldInfo, **kwargs: Any) -> FieldInfo:
         field_dict = dict(field.__repr_args__())
         field_dict.update(**kwargs)
+        # pyrefly: ignore [bad-unpacking]
         new_field = FieldInfo(**field_dict)
         return new_field
 
@@ -207,7 +209,10 @@ class ModelSchemaMetaclass(ModelMetaclass):
                         )
                         python_type = Optional[python_type]  # noqa: UP045
 
-                field_values[field_name] = (python_type, pydantic_field)
+                # Last chance to adjust a declared annotation: `Source` and `MethodSource` say
+                # how to *read* a value, so their fields are frozen — assigning to one would
+                # look like a write the schema never makes.
+                field_values[field_name] = (adapt_field_annotation(python_type), pydantic_field)
 
             return super().__new__(
                 mcs,

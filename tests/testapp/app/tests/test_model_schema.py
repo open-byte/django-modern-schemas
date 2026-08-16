@@ -1,12 +1,13 @@
 import json
 import typing as t
+from datetime import date
 
 import pydantic
 import pytest
 from django.db.models import Model as DjangoModel
-from tests.models import Category, Day, Event, Week
+from tests.models import Category, Day, Event, Question, Week
 
-from django_modern_schemas import MethodSource, ModelSchema, SchemaFactory
+from django_modern_schemas import MethodSource, ModelSchema, SchemaFactory, Source
 from django_modern_schemas.errors import ConfigError
 
 T = t.TypeVar('T', bound=DjangoModel)
@@ -590,3 +591,83 @@ class TestModelSchema:
 
         assert schema._object is None
         assert schema.save().pk is not None
+
+    @pytest.mark.django_db
+    def test_model_validate_accepts_an_already_validated_schema(self):
+        """A built schema is validated as-is: its `Source` fields hold values, not paths."""
+
+        class EventSchema(ModelSchema[Event]):
+            category_name: t.Annotated[str | None, Source('category.name')]
+            display_title: t.Annotated[str, MethodSource('display_title')]
+
+            class Config:
+                model = Event
+                fields = ['title']
+
+        category = Category.objects.create(name='Python', start_date=date.today(), end_date=date.today())
+        event = Event.objects.create(title='DjangoCon', category=category)
+        schema = EventSchema.model_validate(event)
+
+        revalidated = EventSchema.model_validate(schema)
+
+        assert revalidated.model_dump() == {
+            'title': 'DjangoCon',
+            'category_name': 'Python',
+            'display_title': 'Event: DjangoCon',
+        }
+
+    @pytest.mark.django_db
+    def test_model_validate_of_a_schema_keeps_the_instance_binding(self):
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title']
+
+        event = Event.objects.create(title='Original')
+        schema = EventSchema.model_validate(event)
+        schema.title = 'Updated'
+
+        revalidated = EventSchema.model_validate(schema)
+
+        assert revalidated._object == event
+        assert revalidated.save().pk == event.pk
+        assert Event.objects.get(pk=event.pk).title == 'Updated'
+        assert Event.objects.count() == 1
+
+    @pytest.mark.django_db
+    def test_model_validate_accepts_a_plain_pydantic_model(self):
+        class EventInput(pydantic.BaseModel):
+            title: str
+
+        class EventSchema(ModelSchema[Event]):
+            class Config:
+                model = Event
+                fields = ['title']
+
+        schema = EventSchema.model_validate(EventInput(title='PyCon'))
+
+        assert schema.model_dump() == {'title': 'PyCon'}
+        assert schema._object is None  # only a Django instance binds the schema
+        assert schema.save().title == 'PyCon'
+
+    def test_model_validate_of_a_schema_keeps_nested_schemas(self):
+        class QuestionSchema(ModelSchema):
+            class Config:
+                model = Question
+                fields = ['text']
+
+        class CategorySchema(ModelSchema[Category]):
+            questions: t.Annotated[list[QuestionSchema], Source('questions')]
+
+            class Config:
+                model = Category
+                fields = ['name']
+
+        schema = CategorySchema.model_validate(
+            {'name': 'Python', 'questions': [{'text': 'What is Django?'}]},
+        )
+
+        assert CategorySchema.model_validate(schema).model_dump() == {
+            'name': 'Python',
+            'questions': [{'text': 'What is Django?'}],
+        }

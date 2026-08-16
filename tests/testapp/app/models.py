@@ -47,6 +47,9 @@ class Category(models.Model):
     class Meta:
         app_label = 'app'
 
+    def get_title(self) -> str:
+        return self.name
+
 
 class Event(models.Model):
     title = models.CharField(max_length=100)

@@ -1,8 +1,11 @@
 import inspect
+from typing import Annotated, Any
 
 from django.db import models
 from django.db.models import Model
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from ...metadata import MethodSource, Source
 
 
 def is_valid_django_model(model: type[Model]) -> bool:
@@ -35,3 +38,14 @@ def _contains_basemodel(tp) -> bool:
             if _contains_basemodel(arg):
                 return True
     return False
+
+
+def adapt_field_annotation(annotation: Any) -> Any:
+    """Returns the annotation adjusted for the field it declares.
+
+    `Source` and `MethodSource` become frozen fields; every other annotation is
+    returned untouched.
+    """
+    if any(isinstance(meta, (Source, MethodSource)) for meta in getattr(annotation, '__metadata__', ())):
+        return Annotated[annotation, Field(frozen=True)]
+    return annotation

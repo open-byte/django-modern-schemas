@@ -266,6 +266,52 @@ def test_model_schema_rejects_a_many_to_many_source():
         WeekSchema.model_validate(week)
 
 
+def test_model_schema_freezes_source_fields():
+    class EventSchema(ModelSchema):
+        category_name: Annotated[str | None, Source('category.name')]
+        display_title: Annotated[str, MethodSource('display_title')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+
+    assert EventSchema.model_fields['category_name'].frozen is True
+    assert EventSchema.model_fields['display_title'].frozen is True
+    assert not EventSchema.model_fields['title'].frozen
+
+    schema = EventSchema.model_validate(DjangoEvent(title='DjangoCon', category=DjangoCategory(name='Python')))
+
+    with pytest.raises(ValidationError, match='Field is frozen'):
+        schema.category_name = 'Rust'
+
+    with pytest.raises(ValidationError, match='Field is frozen'):
+        schema.display_title = 'Event: RustConf'
+
+    schema.title = 'RustConf'
+
+    assert schema.title == 'RustConf'
+    assert schema.category_name == 'Python'
+
+
+def test_model_schema_freezes_source_fields_under_validate_assignment():
+    class EventSchema(ModelSchema):
+        category_name: Annotated[str | None, Source('category.name')]
+
+        class Config:
+            model = DjangoEvent
+            fields = ['title']
+            validate_assignment = True
+
+    schema = EventSchema.model_validate(DjangoEvent(title='DjangoCon', category=DjangoCategory(name='Python')))
+
+    with pytest.raises(ValidationError, match='Field is frozen'):
+        schema.category_name = 'Rust'
+
+    schema.title = 'RustConf'
+
+    assert schema.title == 'RustConf'
+
+
 @pytest.mark.django_db
 def test_model_schema_does_not_persist_source_fields():
     class EventSchema(ModelSchema):
