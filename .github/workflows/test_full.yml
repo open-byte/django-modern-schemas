@@ -17,6 +17,11 @@ jobs:
         python-version: ['3.10', '3.11', '3.12', '3.13']
       fail-fast: false
 
+    # Without this, uv reads `.python-version` (3.10) and every cell of the matrix
+    # silently runs on the same interpreter, whatever setup-python installed.
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
@@ -49,6 +54,11 @@ jobs:
           - { python: '3.12', django: '5.2', pydantic: '2.13' }  # LTS
           - { python: '3.12', django: '6.0', pydantic: '2.13' }
           - { python: '3.13', django: '6.1', pydantic: '2.13' }
+
+    # Django 6.x requires Python >=3.12, so a cell that fell back to `.python-version`
+    # (3.10) could not even install its pin.
+    env:
+      UV_PYTHON: ${{ matrix.python }}
 
     steps:
       - uses: actions/checkout@v6
