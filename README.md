@@ -12,6 +12,8 @@ generate these schemas. It is maintained by
 [![PyPI](https://img.shields.io/pypi/v/django-modern-schemas.svg)](https://pypi.org/project/django-modern-schemas/)
 [![Python versions](https://img.shields.io/pypi/pyversions/django-modern-schemas.svg)](https://pypi.org/project/django-modern-schemas/)
 [![License](https://img.shields.io/pypi/l/django-modern-schemas.svg)](LICENSE)
+[![Latest on Django Packages](https://img.shields.io/badge/PyPI-django-modern-schemas-tags-8c3c26.svg)](https://djangopackages.org/packages/p/django-modern-schemas/)
+                        
 
 ## Requirements
 
